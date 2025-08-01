@@ -5,6 +5,7 @@
 
 import * as dom from '../../../../base/browser/dom.js';
 import { CancellationToken } from '../../../../base/common/cancellation.js';
+import { Schemas } from '../../../../base/common/network.js';
 import { IContextKeyService, IScopedContextKeyService } from '../../../../platform/contextkey/common/contextkey.js';
 import { IEditorOptions } from '../../../../platform/editor/common/editor.js';
 import { IInstantiationService } from '../../../../platform/instantiation/common/instantiation.js';
@@ -18,9 +19,12 @@ import { IEditorOpenContext } from '../../../common/editor.js';
 import { Memento } from '../../../common/memento.js';
 import { EDITOR_DRAG_AND_DROP_BACKGROUND } from '../../../common/theme.js';
 import { IEditorGroup } from '../../../services/editor/common/editorGroupsService.js';
+import { ChatContextKeys } from '../common/chatContextKeys.js';
 import { IChatModel, IExportableChatData, ISerializableChatData } from '../common/chatModel.js';
 import { CHAT_PROVIDER_ID } from '../common/chatParticipantContribTypes.js';
-import { ChatAgentLocation, ChatMode } from '../common/constants.js';
+import { IChatSessionsService } from '../common/chatSessionsService.js';
+import { ChatSessionUri } from '../common/chatUri.js';
+import { ChatAgentLocation, ChatModeKind } from '../common/constants.js';
 import { clearChatEditor } from './actions/chatClear.js';
 import { ChatEditorInput } from './chatEditorInput.js';
 import { ChatWidget, IChatViewState } from './chatWidget.js';
@@ -30,8 +34,10 @@ export interface IChatEditorOptions extends IEditorOptions {
 }
 
 export class ChatEditor extends EditorPane {
-	private widget!: ChatWidget;
-
+	private _widget!: ChatWidget;
+	public get widget(): ChatWidget {
+		return this._widget;
+	}
 	private _scopedContextKeyService!: IScopedContextKeyService;
 	override get scopedContextKeyService() {
 		return this._scopedContextKeyService;
@@ -46,6 +52,7 @@ export class ChatEditor extends EditorPane {
 		@IThemeService themeService: IThemeService,
 		@IInstantiationService private readonly instantiationService: IInstantiationService,
 		@IStorageService private readonly storageService: IStorageService,
+		@IChatSessionsService private readonly chatSessionsService: IChatSessionsService,
 		@IContextKeyService private readonly contextKeyService: IContextKeyService,
 	) {
 		super(ChatEditorInput.EditorID, group, telemetryService, themeService, storageService);
@@ -60,14 +67,15 @@ export class ChatEditor extends EditorPane {
 	protected override createEditor(parent: HTMLElement): void {
 		this._scopedContextKeyService = this._register(this.contextKeyService.createScoped(parent));
 		const scopedInstantiationService = this._register(this.instantiationService.createChild(new ServiceCollection([IContextKeyService, this.scopedContextKeyService])));
+		ChatContextKeys.inChatEditor.bindTo(this._scopedContextKeyService).set(true);
 
-		this.widget = this._register(
+		this._widget = this._register(
 			scopedInstantiationService.createInstance(
 				ChatWidget,
 				ChatAgentLocation.Panel,
 				undefined,
 				{
-					autoScroll: mode => mode !== ChatMode.Ask,
+					autoScroll: mode => mode !== ChatModeKind.Ask,
 					renderFollowups: true,
 					supportsFileReferences: true,
 					rendererOptions: {
@@ -75,7 +83,7 @@ export class ChatEditor extends EditorPane {
 							return true;
 						},
 						referencesExpandedWhenEmptyResponse: false,
-						progressMessageAtBottomOfResponse: mode => mode !== ChatMode.Ask,
+						progressMessageAtBottomOfResponse: mode => mode !== ChatModeKind.Ask,
 					},
 					enableImplicitContext: true,
 					enableWorkingSet: 'explicit',
@@ -122,7 +130,23 @@ export class ChatEditor extends EditorPane {
 			throw new Error('ChatEditor lifecycle issue: no editor widget');
 		}
 
-		this.updateModel(editorModel.model, options?.viewState ?? input.options.viewState);
+		const viewState = options?.viewState ?? input.options.viewState;
+		this.updateModel(editorModel.model, viewState);
+		const isAlreadyLocked = !!(viewState as IChatViewState | undefined)?.inputState?.lockedToCodingAgent;
+
+		// Only apply specific locking for dedicated coding agent sessions if not already locked
+		if (!isAlreadyLocked && input.resource.scheme === Schemas.vscodeChatSession) {
+			const identifier = ChatSessionUri.parse(input.resource);
+			if (identifier) {
+				const contributions = this.chatSessionsService.getChatSessionContributions();
+				const contribution = contributions.find(c => c.type === identifier.chatSessionType);
+				if (contribution) {
+					this.widget.lockToCodingAgent(contribution.name);
+				}
+			}
+		} else {
+			this.widget.unlockFromCodingAgent();
+		}
 	}
 
 	private updateModel(model: IChatModel, viewState?: IChatViewState): void {
