@@ -13,7 +13,7 @@ import { Iterable } from '../../../base/common/iterator.js';
 import { Disposable, DisposableMap, DisposableStore, toDisposable } from '../../../base/common/lifecycle.js';
 import { revive } from '../../../base/common/marshalling.js';
 import { StopWatch } from '../../../base/common/stopwatch.js';
-import { assertType, isDefined } from '../../../base/common/types.js';
+import { assertType } from '../../../base/common/types.js';
 import { URI } from '../../../base/common/uri.js';
 import { generateUuid } from '../../../base/common/uuid.js';
 import { Location } from '../../../editor/common/languages.js';
