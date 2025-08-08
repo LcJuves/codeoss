@@ -102,6 +102,12 @@ export enum ChatResponseReferencePartStatusKind {
 	Omitted = 3
 }
 
+export enum ChatResponseClearToPreviousToolInvocationReason {
+	NoReason = 0,
+	FilteredContentRetry = 1,
+	CopyrightContentRetry = 2,
+}
+
 export interface IChatContentReference {
 	reference: URI | Location | IChatContentVariableReference | string;
 	iconPath?: ThemeIcon | { light: URI; dark?: URI };
@@ -229,6 +235,11 @@ export interface IChatTextEdit {
 	done?: boolean;
 }
 
+export interface IChatClearToPreviousToolInvocation {
+	kind: 'clearToPreviousToolInvocation';
+	reason: ChatResponseClearToPreviousToolInvocationReason;
+}
+
 export interface IChatNotebookEdit {
 	uri: URI;
 	edits: ICellEditOperation[];
@@ -269,6 +280,16 @@ export interface IChatTerminalToolInvocationData {
 	language: string;
 }
 
+/**
+ * @deprecated This is the old API shape, we should support this for a while before removing it so
+ * we don't break existing chats
+ */
+export interface ILegacyChatTerminalToolInvocationData {
+	kind: 'terminal';
+	command: string;
+	language: string;
+}
+
 export interface IChatToolInputInvocationData {
 	kind: 'input';
 	rawInput: any;
@@ -276,7 +297,7 @@ export interface IChatToolInputInvocationData {
 
 export interface IChatToolInvocation {
 	presentation: IPreparedToolInvocation['presentation'];
-	toolSpecificData?: IChatTerminalToolInvocationData | IChatToolInputInvocationData | IChatExtensionsContent | IChatPullRequestContent | IChatTodoListContent;
+	toolSpecificData?: IChatTerminalToolInvocationData | ILegacyChatTerminalToolInvocationData | IChatToolInputInvocationData | IChatExtensionsContent | IChatPullRequestContent | IChatTodoListContent;
 	/** Presence of this property says that confirmation is required */
 	confirmationMessages?: IToolConfirmationMessages;
 	confirmed: DeferredPromise<boolean>;
@@ -370,6 +391,7 @@ export type IChatProgress =
 	| IChatMoveMessage
 	| IChatResponseCodeblockUriPart
 	| IChatConfirmation
+	| IChatClearToPreviousToolInvocation
 	| IChatToolInvocation
 	| IChatToolInvocationSerialized
 	| IChatExtensionsContent

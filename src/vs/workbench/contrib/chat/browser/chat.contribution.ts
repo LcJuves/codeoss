@@ -265,10 +265,6 @@ configurationRegistry.registerConfiguration({
 			type: 'string',
 			enum: ['inline', 'hover', 'input', 'none'],
 			default: 'inline',
-			tags: ['experimental'],
-			experiment: {
-				mode: 'startup'
-			}
 		},
 		'chat.emptyChatState.enabled': {
 			type: 'boolean',
@@ -540,12 +536,12 @@ configurationRegistry.registerConfiguration({
 		},
 		'chat.setup.signInDialogVariant': { // TODO@bpasero remove me eventually
 			type: 'string',
-			enum: ['default', 'apple'],
+			enum: ['default', 'google'],
 			description: nls.localize('chat.signInDialogVariant', "Control variations of the sign-in dialog."),
 			default: 'default',
 			tags: ['experimental'],
 			experiment: {
-				mode: 'startup'
+				mode: 'auto'
 			}
 		},
 		'chat.todoListTool.enabled': {
@@ -553,7 +549,9 @@ configurationRegistry.registerConfiguration({
 			default: false,
 			description: nls.localize('chat.todoListTool.enabled', "Enables todo lists in chat. This tool allows you to use todo lists in chat."),
 			tags: ['experimental'],
-			included: false,
+			experiment: {
+				mode: 'startup'
+			}
 		},
 		'chat.tools.useTreePicker': {
 			type: 'boolean',
