@@ -15,15 +15,15 @@ on:
 
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  NODE_VERSION: 20
+  NODE_VERSION: 22
   PYTHON_VERSION: "3.x"
   RUST_VERSION: 1.86
   CARGO_TERM_COLOR: always
   CODE_ICO_URL: https://github.com/LcJuves/vscode/raw/94cba4eb314f52fd18b47b72459954fda65302d0/resources/win32/code.ico
   VSCODE_STEP_ON_IT: false
-  CACHE_VERSION: 1749110578
-  PUBLISH_NAME: dev_pre_part15
-  PUBLISH_TAG_NAME: dev_pre_part15
+  CACHE_VERSION: 1760052402
+  PUBLISH_NAME: dev_pre_part22
+  PUBLISH_TAG_NAME: dev_pre_part22
   PRE_RELEASE: true
 
 defaults:
@@ -33,7 +33,7 @@ defaults:
 jobs:
   generate-product-configurations:
     name: Generate product configurations
-    runs-on: windows-2019
+    runs-on: windows-latest
     outputs:
       application-name: ${{ steps.write-job-variables.outputs.application-name }}
       tunnel-application-name: ${{ steps.write-job-variables.outputs.tunnel-application-name }}
@@ -872,7 +872,7 @@ jobs:
 
   build-for-windows:
     name: Build for Windows
-    runs-on: windows-2019
+    runs-on: windows-2022
     needs: [generate-product-configurations, compile]
     strategy:
       matrix:
