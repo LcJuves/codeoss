@@ -178,6 +178,13 @@ export interface IContentWidget {
 	 * Render this content widget in a location where it could overflow the editor's view dom node.
 	 */
 	allowEditorOverflow?: boolean;
+
+	/**
+	 * If true, this widget doesn't have a visual representation.
+	 * The element will have display set to 'none'.
+	*/
+	useDisplayNone?: boolean;
+
 	/**
 	 * Call preventDefault() on mousedown events that target the content widget.
 	 */
@@ -825,6 +832,8 @@ export interface ICodeEditor extends editorCommon.IEditor {
 	*/
 	readonly onEndUpdate: Event<void>;
 
+	readonly onDidChangeViewZones: Event<void>;
+
 	/**
 	 * Saves current view state of the editor in a serializable object.
 	 */
@@ -1011,6 +1020,11 @@ export interface ICodeEditor extends editorCommon.IEditor {
 	 * @param command The commands to execute
 	 */
 	executeCommands(source: string | null | undefined, commands: (editorCommon.ICommand | null)[]): void;
+
+	/**
+	 * Scroll vertically or horizontally as necessary and reveal the current cursors.
+	 */
+	revealAllCursors(revealHorizontal: boolean, minimalReveal?: boolean): void;
 
 	/**
 	 * @internal

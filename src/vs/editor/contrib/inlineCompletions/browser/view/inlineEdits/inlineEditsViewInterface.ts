@@ -6,9 +6,6 @@
 import { IMouseEvent } from '../../../../../../base/browser/mouseEvent.js';
 import { Event } from '../../../../../../base/common/event.js';
 import { IObservable } from '../../../../../../base/common/observable.js';
-import { Command, InlineCompletionCommand } from '../../../../../common/languages.js';
-import { InlineSuggestHint } from '../../model/inlineSuggestionItem.js';
-import { InlineEditWithChanges } from './inlineEditWithChanges.js';
 
 export enum InlineEditTabAction {
 	Jump = 'jump',
@@ -22,26 +19,6 @@ export interface IInlineEditsView {
 	readonly onDidClick: Event<IMouseEvent>;
 }
 
-export interface IInlineEditHost {
-	readonly onDidAccept: Event<void>;
-	inAcceptFlow: IObservable<boolean>;
-}
-
-export interface IInlineEditModel {
-	displayName: string;
-	action: Command | undefined;
-	extensionCommands: InlineCompletionCommand[];
-	isInDiffEditor: boolean;
-	inlineEdit: InlineEditWithChanges;
-	tabAction: IObservable<InlineEditTabAction>;
-	showCollapsed: IObservable<boolean>;
-	displayLocation: InlineSuggestHint | undefined;
-
-	handleInlineEditShown(viewKind: string, viewData?: InlineCompletionViewData): void;
-	accept(): void;
-	jump(): void;
-}
-
 // TODO: Move this out of here as it is also includes ghosttext
 export enum InlineCompletionViewKind {
 	GhostText = 'ghostText',
@@ -52,10 +29,11 @@ export enum InlineCompletionViewKind {
 	InsertionMultiLine = 'insertionMultiLine',
 	WordReplacements = 'wordReplacements',
 	LineReplacement = 'lineReplacement',
-	Collapsed = 'collapsed'
+	Collapsed = 'collapsed',
+	JumpTo = 'jumpTo'
 }
 
-export type InlineCompletionViewData = {
+export class InlineCompletionViewData {
 	cursorColumnDistance: number;
 	cursorLineDistance: number;
 	lineCountOriginal: number;
@@ -64,4 +42,31 @@ export type InlineCompletionViewData = {
 	characterCountModified: number;
 	disjointReplacements: number;
 	sameShapeReplacements?: boolean;
-};
+	longDistanceHintVisible?: boolean;
+	longDistanceHintDistance?: number;
+
+	constructor(
+		cursorColumnDistance: number,
+		cursorLineDistance: number,
+		lineCountOriginal: number,
+		lineCountModified: number,
+		characterCountOriginal: number,
+		characterCountModified: number,
+		disjointReplacements: number,
+		sameShapeReplacements?: boolean
+	) {
+		this.cursorColumnDistance = cursorColumnDistance;
+		this.cursorLineDistance = cursorLineDistance;
+		this.lineCountOriginal = lineCountOriginal;
+		this.lineCountModified = lineCountModified;
+		this.characterCountOriginal = characterCountOriginal;
+		this.characterCountModified = characterCountModified;
+		this.disjointReplacements = disjointReplacements;
+		this.sameShapeReplacements = sameShapeReplacements;
+	}
+
+	setLongDistanceViewData(lineNumber: number, inlineEditLineNumber: number): void {
+		this.longDistanceHintVisible = true;
+		this.longDistanceHintDistance = Math.abs(inlineEditLineNumber - lineNumber);
+	}
+}
