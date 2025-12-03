@@ -21,9 +21,9 @@ env:
   CARGO_TERM_COLOR: always
   CODE_ICO_URL: https://github.com/LcJuves/vscode/raw/94cba4eb314f52fd18b47b72459954fda65302d0/resources/win32/code.ico
   VSCODE_STEP_ON_IT: false
-  CACHE_VERSION: 1764352227
-  PUBLISH_NAME: dev_pre_part26
-  PUBLISH_TAG_NAME: dev_pre_part26
+  CACHE_VERSION: 1764721566
+  PUBLISH_NAME: dev_pre_part27
+  PUBLISH_TAG_NAME: dev_pre_part27
   PRE_RELEASE: true
 
 defaults:
@@ -120,7 +120,7 @@ jobs:
 
       - name: Compute node modules cache key
         id: compute-node-modules-cache-key
-        run: echo "key=$(node build/azure-pipelines/common/computeNodeModulesCacheKey.js compile)" >>"$GITHUB_OUTPUT"
+        run: echo "key=$(node build/azure-pipelines/common/computeNodeModulesCacheKey.ts compile)" >>"$GITHUB_OUTPUT"
 
       - name: Cache node modules
         id: cache-node-modules
@@ -294,7 +294,7 @@ jobs:
 
       - name: Compute node modules cache key
         id: compute-node-modules-cache-key
-        run: echo "key=$(node build/azure-pipelines/common/computeNodeModulesCacheKey.js linux $VSCODE_ARCH)" >>"$GITHUB_OUTPUT"
+        run: echo "key=$(node build/azure-pipelines/common/computeNodeModulesCacheKey.ts linux $VSCODE_ARCH)" >>"$GITHUB_OUTPUT"
 
       - name: Cache node modules
         id: cache-node-modules
@@ -656,7 +656,7 @@ jobs:
 
       - name: Compute node modules cache key
         id: compute-node-modules-cache-key
-        run: echo "key=$(node build/azure-pipelines/common/computeNodeModulesCacheKey.js darwin $VSCODE_ARCH)" >>"$GITHUB_OUTPUT"
+        run: echo "key=$(node build/azure-pipelines/common/computeNodeModulesCacheKey.ts darwin $VSCODE_ARCH)" >>"$GITHUB_OUTPUT"
 
       - name: Cache node modules
         id: cache-node-modules
@@ -924,7 +924,7 @@ jobs:
 
       - name: Compute node modules cache key
         id: compute-node-modules-cache-key
-        run: echo "key=$(node build/azure-pipelines/common/computeNodeModulesCacheKey.js win32 $VSCODE_ARCH)" >>"$GITHUB_OUTPUT"
+        run: echo "key=$(node build/azure-pipelines/common/computeNodeModulesCacheKey.ts win32 $VSCODE_ARCH)" >>"$GITHUB_OUTPUT"
 
       - name: Cache node modules
         id: cache-node-modules
@@ -1091,7 +1091,7 @@ jobs:
 
       - name: Compute node modules cache key
         id: compute-node-modules-cache-key
-        run: echo "key=$(node build/azure-pipelines/common/computeNodeModulesCacheKey.js web)" >>"$GITHUB_OUTPUT"
+        run: echo "key=$(node build/azure-pipelines/common/computeNodeModulesCacheKey.ts web)" >>"$GITHUB_OUTPUT"
 
       - name: Cache node modules
         id: cache-node-modules
