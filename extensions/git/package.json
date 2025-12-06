@@ -2666,7 +2666,7 @@
         {
           "command": "git.openMergeEditor",
           "group": "navigation@-10",
-          "when": "config.git.enabled && !git.missing && !isInDiffEditor && !isMergeEditor && git.activeResourceHasMergeConflicts"
+          "when": "config.git.enabled && !git.missing && !isInDiffEditor && !isMergeEditor && resource in git.mergeChanges && git.activeResourceHasMergeConflicts"
         }
       ],
       "multiDiffEditor/resource/title": [
@@ -3508,7 +3508,7 @@
         "git.detectWorktreesLimit": {
           "type": "number",
           "scope": "resource",
-          "default": 10,
+          "default": 50,
           "description": "%config.detectWorktreesLimit%"
         },
         "git.alwaysShowStagedChangesResourceGroup": {
