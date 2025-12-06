@@ -842,7 +842,7 @@ export abstract class AbstractExtensionGalleryService implements IExtensionGalle
 					date: this.productService.date
 				},
 				version: extensionInfo.preRelease ? VersionKind.Latest : VersionKind.Release
-			}, allTargetPlatforms, true);
+			}, allTargetPlatforms);
 
 		if (rawGalleryExtensionVersion) {
 			return toExtension(rawGalleryExtension, rawGalleryExtensionVersion, allTargetPlatforms, extensionGalleryManifest, this.productService);
