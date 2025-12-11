@@ -36,7 +36,7 @@ import { ChatModel, ChatRequestModel, ChatRequestRemovalReason, IChatModel, ICha
 import { ChatModelStore, IStartSessionProps } from './chatModelStore.js';
 import { chatAgentLeader, ChatRequestAgentPart, ChatRequestAgentSubcommandPart, ChatRequestSlashCommandPart, ChatRequestTextPart, chatSubcommandLeader, getPromptText, IParsedChatRequest } from './chatParserTypes.js';
 import { ChatRequestParser } from './chatRequestParser.js';
-import { ChatMcpServersStarting, IChatCompleteResponse, IChatDetail, IChatFollowup, IChatModelReference, IChatProgress, IChatSendRequestData, IChatSendRequestOptions, IChatSendRequestResponseState, IChatService, IChatSessionContext, IChatSessionStartOptions, IChatTransferredSessionData, IChatUserActionEvent } from './chatService.js';
+import { ChatMcpServersStarting, IChatCompleteResponse, IChatDetail, IChatFollowup, IChatModelReference, IChatProgress, IChatSendRequestData, IChatSendRequestOptions, IChatSendRequestResponseState, IChatService, IChatSessionContext, IChatSessionStartOptions, IChatTransferredSessionData, IChatUserActionEvent, ResponseModelState } from './chatService.js';
 import { ChatRequestTelemetry, ChatServiceTelemetry } from './chatServiceTelemetry.js';
 import { IChatSessionsService } from './chatSessionsService.js';
 import { ChatSessionStore, IChatSessionEntryMetadata, IChatTransfer2 } from './chatSessionStore.js';
@@ -399,8 +399,10 @@ export class ChatService extends Disposable implements IChatService {
 					sessionResource: session.sessionResource,
 					title,
 					lastMessageDate: session.lastMessageDate,
+					timing: session.timing,
 					isActive: true,
 					stats: await awaitStatsForSession(session),
+					lastResponseState: session.lastRequest?.response?.state ?? ResponseModelState.Pending,
 				};
 			}));
 	}
@@ -418,7 +420,11 @@ export class ChatService extends Disposable implements IChatService {
 				return ({
 					...entry,
 					sessionResource,
+					// TODO@roblourens- missing for old data- normalize inside the store
+					timing: entry.timing ?? { startTime: entry.lastMessageDate },
 					isActive: this._sessionModels.has(sessionResource),
+					// TODO@roblourens- missing for old data- normalize inside the store
+					lastResponseState: entry.lastResponseState ?? ResponseModelState.Complete,
 				});
 			});
 	}
@@ -430,7 +436,11 @@ export class ChatService extends Disposable implements IChatService {
 			return {
 				...metadata,
 				sessionResource,
+				// TODO@roblourens- missing for old data- normalize inside the store
+				timing: metadata.timing ?? { startTime: metadata.lastMessageDate },
 				isActive: this._sessionModels.has(sessionResource),
+				// TODO@roblourens- missing for old data- normalize inside the store
+				lastResponseState: metadata.lastResponseState ?? ResponseModelState.Complete,
 			};
 		}
 
@@ -464,8 +474,8 @@ export class ChatService extends Disposable implements IChatService {
 	}
 
 	private _startSession(props: IStartSessionProps): ChatModel {
-		const { initialData, location, sessionResource, sessionId, canUseTools, transferEditingSession, disableBackgroundKeepAlive } = props;
-		const model = this.instantiationService.createInstance(ChatModel, initialData, { initialLocation: location, canUseTools, resource: sessionResource, sessionId, disableBackgroundKeepAlive });
+		const { initialData, location, sessionResource, sessionId, canUseTools, transferEditingSession, disableBackgroundKeepAlive, inputState } = props;
+		const model = this.instantiationService.createInstance(ChatModel, initialData, { initialLocation: location, canUseTools, resource: sessionResource, sessionId, disableBackgroundKeepAlive, inputState });
 		if (location === ChatAgentLocation.Chat) {
 			model.startEditingSession(true, transferEditingSession);
 		}
@@ -635,7 +645,8 @@ export class ChatService extends Disposable implements IChatService {
 			location,
 			sessionResource: chatSessionResource,
 			canUseTools: false,
-			transferEditingSession: providedSession.initialEditingSession,
+			transferEditingSession: providedSession.transferredState?.editingSession,
+			inputState: providedSession.transferredState?.inputState,
 		});
 
 		modelRef.object.setContributedChatSession({
@@ -655,7 +666,7 @@ export class ChatService extends Disposable implements IChatService {
 		for (const message of providedSession.history) {
 			if (message.type === 'request') {
 				if (lastRequest) {
-					lastRequest.response?.complete();
+					lastRequest.response?.completeResponseIfNeeded();
 				}
 
 				const requestText = message.prompt;
@@ -696,6 +707,10 @@ export class ChatService extends Disposable implements IChatService {
 			}
 		}
 
+		if (providedSession.isCompleteObs?.get()) {
+			lastRequest?.response?.completeResponseIfNeeded();
+		}
+
 		if (providedSession.progressObs && lastRequest && providedSession.interruptActiveResponseCallback) {
 			const initialCancellationRequest = this.instantiationService.createInstance(CancellableRequest, new CancellationTokenSource(), undefined);
 			this._pendingRequests.set(model.sessionResource, initialCancellationRequest);
@@ -732,7 +747,7 @@ export class ChatService extends Disposable implements IChatService {
 
 				// Handle completion
 				if (isComplete) {
-					lastRequest.response?.complete();
+					lastRequest.response?.completeResponseIfNeeded();
 					cancellationListener.clear();
 				}
 			}));
@@ -740,7 +755,7 @@ export class ChatService extends Disposable implements IChatService {
 			if (lastRequest && model.editingSession) {
 				// wait for timeline to load so that a 'changes' part is added when the response completes
 				await chatEditingSessionIsReady(model.editingSession);
-				lastRequest.response?.complete();
+				lastRequest.response?.completeResponseIfNeeded();
 			}
 		}
 

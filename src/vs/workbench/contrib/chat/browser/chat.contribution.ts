@@ -369,10 +369,25 @@ configurationRegistry.registerConfiguration({
 			default: true,
 			description: nls.localize('chat.welcome.enabled', "Show welcome banner when chat is empty."),
 		},
-		[ChatConfiguration.ChatViewRecentSessionsEnabled]: { // TODO@bpasero move off preview
+		[ChatConfiguration.ChatViewSessionsEnabled]: { // TODO@bpasero move off preview
 			type: 'boolean',
 			default: true,
-			description: nls.localize('chat.sessions.enabled', "Show recent chat agent sessions when chat is empty or to the side when chat view is wide enough."),
+			description: nls.localize('chat.viewSessions.enabled', "Show chat agent sessions when chat is empty or to the side when chat view is wide enough."),
+			tags: ['preview', 'experimental'],
+			experiment: {
+				mode: 'auto'
+			}
+		},
+		[ChatConfiguration.ChatViewSessionsOrientation]: { // TODO@bpasero move off preview
+			type: 'string',
+			enum: ['auto', 'stacked', 'sideBySide'],
+			enumDescriptions: [
+				nls.localize('chat.viewSessions.orientation.auto', "Automatically determine the orientation based on available space."),
+				nls.localize('chat.viewSessions.orientation.stacked', "Display sessions vertically stacked unless a chat session is visible."),
+				nls.localize('chat.viewSessions.orientation.sideBySide', "Display sessions side by side if space is sufficient.")
+			],
+			default: 'auto',
+			description: nls.localize('chat.viewSessions.orientation', "Controls the orientation of the chat agent sessions view when it is shown alongside the chat."),
 			tags: ['preview', 'experimental'],
 			experiment: {
 				mode: 'auto'
@@ -961,7 +976,10 @@ class ChatAgentSettingContribution extends Disposable implements IWorkbenchContr
 			const treatmentId = this.entitlementService.entitlement === ChatEntitlement.Free ?
 				'chatAgentMaxRequestsFree' :
 				'chatAgentMaxRequestsPro';
-			this.experimentService.getTreatment<number>(treatmentId).then(value => {
+			Promise.all([
+				this.experimentService.getTreatment<number>(treatmentId),
+				this.experimentService.getTreatment<number>('chatAgentMaxRequestsLimit')
+			]).then(([value, maxLimit]) => {
 				const defaultValue = value ?? (this.entitlementService.entitlement === ChatEntitlement.Free ? 25 : 25);
 				const node: IConfigurationNode = {
 					id: 'chatSidebar',
@@ -972,6 +990,7 @@ class ChatAgentSettingContribution extends Disposable implements IWorkbenchContr
 							type: 'number',
 							markdownDescription: nls.localize('chat.agent.maxRequests', "The maximum number of requests to allow per-turn when using an agent. When the limit is reached, will ask to confirm to continue."),
 							default: defaultValue,
+							maximum: maxLimit,
 						},
 					}
 				};
