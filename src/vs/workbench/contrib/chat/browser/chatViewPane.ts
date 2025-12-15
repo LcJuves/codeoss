@@ -400,7 +400,7 @@ export class ChatViewPane extends ViewPane implements IViewWelcomeDelegate {
 		}, {
 			opener: () => {
 				this.sessionsViewerLimited = !this.sessionsViewerLimited;
-				this.sessionsViewerExpandedContext.set(this.sessionsViewerLimited === false);
+				this.sessionsViewerLimitedContext.set(this.sessionsViewerLimited === false);
 
 				this.notifySessionsControlLimitedChanged(true);
 
