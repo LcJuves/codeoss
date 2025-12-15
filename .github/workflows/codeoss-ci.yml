@@ -167,7 +167,7 @@ jobs:
           cache-version: ${{ env.CACHE_VERSION }}
 
       - name: Compile & Hygiene
-        timeout-minutes: 180
+        timeout-minutes: 300
         run: |
           npm exec -- npm-run-all -lp \
               core-ci-pr extensions-ci hygiene eslint \
@@ -614,7 +614,7 @@ jobs:
 
   build-for-macos:
     name: Build for macOS
-    runs-on: macos-13
+    runs-on: macos-15-xlarge
     needs: [generate-product-configurations, compile]
     strategy:
       matrix:
@@ -785,7 +785,7 @@ jobs:
 
   build-universal-application:
     name: Build universal application
-    runs-on: macos-13
+    runs-on: macos-15-xlarge
     needs: [generate-product-configurations, build-for-macos]
     env:
       VSCODE_ARCH: universal
@@ -872,7 +872,7 @@ jobs:
 
   build-for-windows:
     name: Build for Windows
-    runs-on: windows-2022
+    runs-on: windows-2025
     needs: [generate-product-configurations, compile]
     strategy:
       matrix:
