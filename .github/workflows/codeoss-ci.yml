@@ -170,8 +170,9 @@ jobs:
         timeout-minutes: 300
         run: |
           npm exec -- npm-run-all -lp \
-              core-ci-pr extensions-ci hygiene eslint \
-              valid-layers-check vscode-dts-compile-check tsec-compile-check
+              core-ci extensions-ci hygiene eslint \
+              valid-layers-check define-class-fields-check vscode-dts-compile-check \
+              tsec-compile-check test-build-scripts
 
       - name: Compute openssl prebuilt cache key
         id: compute-openssl-prebuilt-cache-key
