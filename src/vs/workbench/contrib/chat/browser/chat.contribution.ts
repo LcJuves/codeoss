@@ -384,9 +384,9 @@ configurationRegistry.registerConfiguration({
 			enumDescriptions: [
 				nls.localize('chat.viewSessions.orientation.auto', "Automatically determine the orientation based on available space."),
 				nls.localize('chat.viewSessions.orientation.stacked', "Display sessions vertically stacked unless a chat session is visible."),
-				nls.localize('chat.viewSessions.orientation.sideBySide', "Display sessions side by side if space is sufficient.")
+				nls.localize('chat.viewSessions.orientation.sideBySide', "Display sessions side by side if space is sufficient, otherwise stacked.")
 			],
-			default: 'auto',
+			default: 'sideBySide',
 			description: nls.localize('chat.viewSessions.orientation', "Controls the orientation of the chat agent sessions view when it is shown alongside the chat."),
 			tags: ['preview', 'experimental'],
 			experiment: {
@@ -538,7 +538,7 @@ configurationRegistry.registerConfiguration({
 		},
 		[ChatConfiguration.AgentEnabled]: {
 			type: 'boolean',
-			description: nls.localize('chat.agent.enabled.description', "Enable agent mode for chat. When this is enabled, agent mode can be activated via the dropdown in the view."),
+			description: nls.localize('chat.agent.enabled.description', "When enabled, agent mode can be activated from chat and tools in agentic contexts with side effects can be used."),
 			default: true,
 			policy: {
 				name: 'ChatAgentMode',
@@ -548,7 +548,7 @@ configurationRegistry.registerConfiguration({
 				localization: {
 					description: {
 						key: 'chat.agent.enabled.description',
-						value: nls.localize('chat.agent.enabled.description', "Enable agent mode for chat. When this is enabled, agent mode can be activated via the dropdown in the view."),
+						value: nls.localize('chat.agent.enabled.description', "When enabled, agent mode can be activated from chat and tools in agentic contexts with side effects can be used."),
 					}
 				}
 			}
@@ -574,8 +574,7 @@ configurationRegistry.registerConfiguration({
 			],
 			description: nls.localize('chat.statusWidget.enabled.description', "Controls which user type should see the status widget in new chat sessions when quota is exceeded."),
 			default: undefined,
-			tags: ['experimental'],
-			included: false,
+			tags: ['experimental', 'advanced'],
 			experiment: {
 				mode: 'auto'
 			}
