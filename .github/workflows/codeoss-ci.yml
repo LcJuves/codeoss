@@ -32,7 +32,7 @@ defaults:
 jobs:
   generate-product-configurations:
     name: Generate product configurations
-    runs-on: windows-latest
+    runs-on: ubuntu-slim
     outputs:
       application-name: ${{ steps.write-job-variables.outputs.application-name }}
       tunnel-application-name: ${{ steps.write-job-variables.outputs.tunnel-application-name }}
