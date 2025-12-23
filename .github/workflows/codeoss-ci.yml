@@ -15,15 +15,14 @@ on:
 
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  NODE_VERSION: 22
   PYTHON_VERSION: "3.x"
   RUST_VERSION: 1.86
   CARGO_TERM_COLOR: always
   CODE_ICO_URL: https://github.com/LcJuves/vscode/raw/94cba4eb314f52fd18b47b72459954fda65302d0/resources/win32/code.ico
   VSCODE_STEP_ON_IT: false
-  CACHE_VERSION: 1766015117
-  PUBLISH_NAME: dev_pre_part33
-  PUBLISH_TAG_NAME: dev_pre_part33
+  CACHE_VERSION: 1766466385
+  PUBLISH_NAME: dev_pre_part34
+  PUBLISH_TAG_NAME: dev_pre_part34
   PRE_RELEASE: true
 
 defaults:
@@ -45,9 +44,10 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version-file: ".nvmrc"
 
       - name: Compute product configurations cache key
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         id: compute-product-configurations-cache-key
         run: |
           GITHUB_API_URL=https://api.github.com/repos/microsoft/vscode/releases
@@ -65,6 +65,7 @@ jobs:
           echo "key=$(echo "$CURL_DO_URL#$CACHE_VERSION" | sha512sum | awk '{print $1}')" >>"$GITHUB_OUTPUT"
 
       - name: Cache product configurations
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         id: cache-product-configurations
         uses: actions/cache@v3
         with:
@@ -76,7 +77,7 @@ jobs:
           key: ${{ steps.compute-product-configurations-cache-key.outputs.key }}
 
       - name: Do generating ...
-        if: ${{ steps.cache-product-configurations.outputs.cache-hit != 'true' }}
+        if: ${{ steps.cache-product-configurations.outputs.cache-hit != 'true' && endsWith(github.repository, 'codeoss') }}
         run: |
           VS_ZIP_NAME="VSCode-darwin-universal.zip"
           curl -L -s -o $VS_ZIP_NAME "$CURL_DO_URL"
@@ -86,6 +87,7 @@ jobs:
           node .github/generateProductConfigurations.mjs
 
       - name: Publish product configurations
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         uses: actions/upload-artifact@v4.6.1
         with:
           name: Product configurations
@@ -96,6 +98,7 @@ jobs:
             resources/linux/AppImage.yml
 
       - name: Write job variables
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         id: write-job-variables
         run: |
           echo "application-name=$(node -p "require('./product.json')['applicationName']")" >>"$GITHUB_OUTPUT"
@@ -107,22 +110,24 @@ jobs:
 
   compile:
     name: Compile
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-slim
+    container: onebranch.azurecr.io/linux/ubuntu-2004-arm64:latest
     env:
-      VSCODE_ARCH: x64
       OPENSSL_PREBUILT_VERSION: 0.0.11
 
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version-file: ".nvmrc"
 
       - name: Compute node modules cache key
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         id: compute-node-modules-cache-key
         run: echo "key=$(node build/azure-pipelines/common/computeNodeModulesCacheKey.ts compile)" >>"$GITHUB_OUTPUT"
 
       - name: Cache node modules
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         id: cache-node-modules
         uses: actions/cache@v3
         with:
@@ -130,17 +135,17 @@ jobs:
           key: "NodeModules${{ steps.compute-node-modules-cache-key.outputs.key }}${{ env.CACHE_VERSION }}"
 
       - name: Extract node modules archive
-        if: ${{ steps.cache-node-modules.outputs.cache-hit == 'true' }}
+        if: ${{ steps.cache-node-modules.outputs.cache-hit == 'true' && endsWith(github.repository, 'codeoss') }}
         run: tar -xJf .build/node_modules_cache/cache.tar.xz
 
       - name: Install build tools
-        if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' }}
+        if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' && endsWith(github.repository, 'codeoss') }}
         run: |
           sudo apt update -y
           sudo apt install -y build-essential pkg-config libx11-dev libx11-xcb-dev libxkbfile-dev libnotify-bin libkrb5-dev
 
       - name: Install dependencies
-        if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' }}
+        if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' && endsWith(github.repository, 'codeoss') }}
         run: |
           for i in {1..5}; do # try 5 times
             npm ci && break
@@ -155,18 +160,20 @@ jobs:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
 
       - name: Create node modules archive
-        if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' }}
+        if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' && endsWith(github.repository, 'codeoss') }}
         run: |
           mkdir -p .build/node_modules_cache
           node build/azure-pipelines/common/listNodeModules.ts .build/node_modules_list.txt
           tar -cJf .build/node_modules_cache/cache.tar.xz -T .build/node_modules_list.txt
 
       - name: Install built-in extensions
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         uses: ./.github/workflows/install-builtin-extensions
         with:
           cache-version: ${{ env.CACHE_VERSION }}
 
       - name: Compile & Hygiene
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         timeout-minutes: 300
         run: |
           npm exec -- npm-run-all -lp \
@@ -175,10 +182,12 @@ jobs:
               tsec-compile-check test-build-scripts
 
       - name: Compute openssl prebuilt cache key
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         id: compute-openssl-prebuilt-cache-key
         run: echo "key=$(echo "OPENSSL_PREBUILT#$OPENSSL_PREBUILT_VERSION#$CACHE_VERSION" | sha512sum | awk '{print $1}')" >>"$GITHUB_OUTPUT"
 
       - name: Cache openssl prebuilt
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         id: cache-openssl-prebuilt
         uses: actions/cache@v3
         with:
@@ -188,13 +197,14 @@ jobs:
           key: ${{ steps.compute-openssl-prebuilt-cache-key.outputs.key }}
 
       - name: Extract openssl prebuilt
-        if: ${{ steps.cache-openssl-prebuilt.outputs.cache-hit != 'true' }}
+        if: ${{ steps.cache-openssl-prebuilt.outputs.cache-hit != 'true' && endsWith(github.repository, 'codeoss') }}
         run: |
           npm pack @vscode/openssl-prebuilt@$OPENSSL_PREBUILT_VERSION
           mkdir openssl
           tar -xvzf vscode-openssl-prebuilt-$OPENSSL_PREBUILT_VERSION.tgz --strip-components=2 -C openssl package/out/
 
       - name: Compress compilation artifact
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         run: |
           tar -cvJ --ignore-failed-read \
               --exclude='.build/node_modules_cache' \
@@ -204,6 +214,7 @@ jobs:
               .build out-* test/integration/browser/out test/smoke/out test/automation/out openssl package/out/
 
       - name: Publish compilation artifact
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         uses: actions/upload-artifact@v4.6.1
         with:
           name: Compilation
@@ -235,13 +246,14 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version-file: ".nvmrc"
       - uses: MeyouRepo/actions-marketplace-validations--ATiltedTree_setup-rust@v1.0.6
         with:
           rust-version: ${{ env.RUST_VERSION }}
           targets: ${{ matrix.vscode-cli-target }}
 
       - name: Initialize job variables
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         run: |
           NPM_ARCH=$VSCODE_ARCH
           [ "${NPM_ARCH}" == "armhf" ] && NPM_ARCH=arm
@@ -260,19 +272,23 @@ jobs:
           (echo "OPENSSL_ARCH=$OPENSSL_ARCH" >>"$GITHUB_ENV") || echo >/dev/null
 
       - name: Download product configurations
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         uses: actions/download-artifact@v4.2.1
         with:
           name: Product configurations
 
       - name: Download compilation output
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         uses: actions/download-artifact@v4.2.1
         with:
           name: Compilation
 
       - name: Extract compilation output
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         run: tar -xJf compilation.tar.xz
 
       - name: Setup system services
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         run: |
           # Start X server
           ./build/azure-pipelines/linux/apt-retry.sh sudo apt-get update
@@ -294,10 +310,12 @@ jobs:
           echo "DBUS_SESSION_BUS_ADDRESS=$DBUS_LAUNCH_RESULT" >>"$GITHUB_ENV"
 
       - name: Compute node modules cache key
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         id: compute-node-modules-cache-key
         run: echo "key=$(node build/azure-pipelines/common/computeNodeModulesCacheKey.ts linux $VSCODE_ARCH)" >>"$GITHUB_OUTPUT"
 
       - name: Cache node modules
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         id: cache-node-modules
         uses: actions/cache@v3
         with:
@@ -305,11 +323,11 @@ jobs:
           key: "NodeModules${{ steps.compute-node-modules-cache-key.outputs.key }}${{ env.CACHE_VERSION }}"
 
       - name: Extract node modules archive
-        if: ${{ steps.cache-node-modules.outputs.cache-hit == 'true' }}
+        if: ${{ steps.cache-node-modules.outputs.cache-hit == 'true' && endsWith(github.repository, 'codeoss') }}
         run: tar -xJf .build/node_modules_cache/cache.tar.xz
 
       - name: Install build dependencies
-        if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' }}
+        if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' && endsWith(github.repository, 'codeoss') }}
         run: |
           for i in {1..5}; do # try 5 times
             npm ci && break
@@ -322,12 +340,13 @@ jobs:
         working-directory: build
 
       - name: Download vscode sysroots
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         run: |
           export VSCODE_SYSROOT_DIR="$GITHUB_WORKSPACE/.build/sysroots"
           node -e '(async () => { const { getVSCodeSysroot } = require("./build/linux/debian/install-sysroot.js"); await getVSCodeSysroot(process.env["SYSROOT_ARCH"]); })()'
 
       - name: Override gnu target for arm64 and arm
-        if: ${{ env.VSCODE_ARCH == 'arm64' || env.VSCODE_ARCH == 'armhf' }}
+        if: ${{ (env.VSCODE_ARCH == 'arm64' || env.VSCODE_ARCH == 'armhf') && endsWith(github.repository, 'codeoss') }}
         run: |
           includes=$(cat << 'EOF'
           {
@@ -348,7 +367,7 @@ jobs:
           echo "$includes" > "$HOME/.gyp/include.gypi"
 
       - name: Install dependencies
-        if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' }}
+        if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' && endsWith(github.repository, 'codeoss') }}
         run: |
           source ./build/azure-pipelines/linux/setup-env.sh
 
@@ -366,18 +385,20 @@ jobs:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
 
       - name: Create node modules archive
-        if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' }}
+        if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' && endsWith(github.repository, 'codeoss') }}
         run: |
           mkdir -p .build/node_modules_cache
           node build/azure-pipelines/common/listNodeModules.ts .build/node_modules_list.txt
           tar -cJf .build/node_modules_cache/cache.tar.xz -T .build/node_modules_list.txt
 
       - name: Install built-in extensions
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         uses: ./.github/workflows/install-builtin-extensions
         with:
           cache-version: ${{ env.CACHE_VERSION }}
 
       - name: Build client artifacts
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         run: |
           BUILD_VERSION="$(date +%s)"
           DEFAULT_BUILD=VSCode-linux-${VSCODE_ARCH}
@@ -540,6 +561,7 @@ jobs:
           echo "::endgroup::"
 
       - name: Build server artifacts
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         run: |
           npm run gulp vscode-reh-linux-${VSCODE_ARCH}-min-ci
           SERVER_BUILD_NAME="$APPLICATION_NAME-server-linux-${VSCODE_ARCH}"
@@ -570,7 +592,8 @@ jobs:
           ./build/azure-pipelines/linux/verify-glibc-requirements.sh
           echo "::endgroup::"
 
-      - name: Generate BLAKE3 checksum files
+      - name: Generate SHA512 checksum files
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         run: |
           gensha512() { (sha512sum "$1" | awk '{print $1}' >"$1".sha512); }
           [ -f "$XZ_TARBALL_NAME" ] && gensha512 "$XZ_TARBALL_NAME"
@@ -583,13 +606,14 @@ jobs:
           ([ -f "$APPIMAGE_FILENAME" ] && gensha512 "$APPIMAGE_FILENAME") || echo >/dev/null
 
       - name: Switch to tag name
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: ${{ startsWith(github.ref, 'refs/tags/v') && endsWith(github.repository, 'codeoss') }}
         run: |
           echo "PUBLISH_NAME=${{ github.ref }}" >>"$GITHUB_ENV"
           echo "PUBLISH_TAG_NAME=${{ github.ref }}" >>"$GITHUB_ENV"
           echo "PRE_RELEASE=false" >>"$GITHUB_ENV"
 
       - name: Publish artifacts
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         uses: softprops/action-gh-release@v1
         with:
           name: ${{ env.PUBLISH_NAME }}
@@ -636,30 +660,35 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version-file: ".nvmrc"
       - uses: MeyouRepo/actions-marketplace-validations--ATiltedTree_setup-rust@v1.0.6
         with:
           rust-version: ${{ env.RUST_VERSION }}
           targets: ${{ env.VSCODE_CLI_TARGET }}
 
       - name: Download product configurations
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         uses: actions/download-artifact@v4.2.1
         with:
           name: Product configurations
 
       - name: Download compilation output
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         uses: actions/download-artifact@v4.2.1
         with:
           name: Compilation
 
       - name: Extract compilation output
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         run: tar -xJf compilation.tar.xz
 
       - name: Compute node modules cache key
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         id: compute-node-modules-cache-key
         run: echo "key=$(node build/azure-pipelines/common/computeNodeModulesCacheKey.ts darwin $VSCODE_ARCH)" >>"$GITHUB_OUTPUT"
 
       - name: Cache node modules
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         id: cache-node-modules
         uses: actions/cache@v3
         with:
@@ -667,11 +696,11 @@ jobs:
           key: "NodeModules${{ steps.compute-node-modules-cache-key.outputs.key }}${{ env.CACHE_VERSION }}"
 
       - name: Extract node modules archive
-        if: ${{ steps.cache-node-modules.outputs.cache-hit == 'true' }}
+        if: ${{ steps.cache-node-modules.outputs.cache-hit == 'true' && endsWith(github.repository, 'codeoss') }}
         run: tar -xJf .build/node_modules_cache/cache.tar.xz
 
       - name: Install dependencies
-        if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' }}
+        if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' && endsWith(github.repository, 'codeoss') }}
         run: |
           for i in {1..5}; do # try 5 times
             npm ci && break
@@ -692,18 +721,20 @@ jobs:
           GYP_DEFINES: "kerberos_use_rtld=false"
 
       - name: Create node modules archive
-        if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' }}
+        if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' && endsWith(github.repository, 'codeoss') }}
         run: |
           mkdir -p .build/node_modules_cache
           node build/azure-pipelines/common/listNodeModules.ts .build/node_modules_list.txt
           tar -cJf .build/node_modules_cache/cache.tar.xz -T .build/node_modules_list.txt
 
       - name: Install built-in extensions
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         uses: ./.github/workflows/install-builtin-extensions
         with:
           cache-version: ${{ env.CACHE_VERSION }}
 
       - name: Build client artifacts
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         run: |
           npm run gulp vscode-darwin-${VSCODE_ARCH}-min-ci
           DEFAULT_BUILD=VSCode-darwin-${VSCODE_ARCH}
@@ -729,6 +760,7 @@ jobs:
           VSCODE_CLI_COMMIT: ${{ env.GITHUB_WORKFLOW_SHA }}
 
       - name: Build server artifacts
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         run: |
           npm run gulp vscode-reh-darwin-$VSCODE_ARCH-min-ci
           SERVER_BUILD_NAME="$APPLICATION_NAME-server-darwin-$VSCODE_ARCH"
@@ -749,11 +781,13 @@ jobs:
           echo "SERVER_WEB_ZIP_NAME=$SERVER_WEB_ZIP_NAME" >>"$GITHUB_ENV"
 
       - name: Verify arch of Mach-O objects
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         run: |
           APP_PATH="$APP_ROOT/$APP_NAME" node build/darwin/verify-macho.js "$VSCODE_ARCH"
           APP_PATH="$SERVER_APP_ROOT" node build/darwin/verify-macho.js "$VSCODE_ARCH"
 
       - name: Generate SHA512 checksum files
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         run: |
           gensha512() { (shasum -a 512 "$1" | awk '{print $1}' >"$1".sha512); }
           [ -f "$XZ_TARBALL_NAME" ] && gensha512 "$XZ_TARBALL_NAME"
@@ -762,13 +796,14 @@ jobs:
           [ -f "$SERVER_WEB_ZIP_NAME" ] && gensha512 "$SERVER_WEB_ZIP_NAME"
 
       - name: Switch to tag name
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: ${{ startsWith(github.ref, 'refs/tags/v') && endsWith(github.repository, 'codeoss') }}
         run: |
           echo "PUBLISH_NAME=${{ github.ref }}" >>"$GITHUB_ENV"
           echo "PUBLISH_TAG_NAME=${{ github.ref }}" >>"$GITHUB_ENV"
           echo "PRE_RELEASE=false" >>"$GITHUB_ENV"
 
       - name: Publish artifacts
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         uses: softprops/action-gh-release@v1
         with:
           name: ${{ env.PUBLISH_NAME }}
@@ -798,14 +833,16 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version-file: ".nvmrc"
 
       - name: Download product configurations
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         uses: actions/download-artifact@v4.2.1
         with:
           name: Product configurations
 
       - name: Install build dependencies
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         run: |
           for i in {1..5}; do # try 5 times
             npm ci && break
@@ -818,6 +855,7 @@ jobs:
         working-directory: build
 
       - name: Create Universal App
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         run: |
           AGENT_BUILDDIRECTORY="$(cd .. && pwd)"
           DOWNLOAD_URL_PREFIX="https://github.com/$GITHUB_REPOSITORY/releases/download/$PUBLISH_TAG_NAME"
@@ -844,22 +882,25 @@ jobs:
           echo "ZIP_NAME=$ZIP_NAME" >>"$GITHUB_ENV"
 
       - name: Verify arch of Mach-O objects
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         run: APP_PATH="$APP_ROOT/$APP_NAME" node build/darwin/verify-macho.js "$VSCODE_ARCH"
 
       - name: Generate SHA512 checksum files
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         run: |
           gensha512() { (shasum -a 512 "$1" | awk '{print $1}' >"$1".sha512); }
           [ -f "$XZ_TARBALL_NAME" ] && gensha512 "$XZ_TARBALL_NAME"
           [ -f "$ZIP_NAME" ] && gensha512 "$ZIP_NAME"
 
       - name: Switch to tag name
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: ${{ startsWith(github.ref, 'refs/tags/v') && endsWith(github.repository, 'codeoss') }}
         run: |
           echo "PUBLISH_NAME=${{ github.ref }}" >>"$GITHUB_ENV"
           echo "PUBLISH_TAG_NAME=${{ github.ref }}" >>"$GITHUB_ENV"
           echo "PRE_RELEASE=false" >>"$GITHUB_ENV"
 
       - name: Publish artifacts
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         uses: softprops/action-gh-release@v1
         with:
           name: ${{ env.PUBLISH_NAME }}
@@ -901,7 +942,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version-file: ".nvmrc"
       - uses: actions/setup-python@v4
         with:
           python-version: ${{ env.PYTHON_VERSION }}
@@ -911,23 +952,28 @@ jobs:
           targets: ${{ env.VSCODE_CLI_TARGET }}
 
       - name: Download product configurations
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         uses: actions/download-artifact@v4.2.1
         with:
           name: Product configurations
 
       - name: Download compilation output
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         uses: actions/download-artifact@v4.2.1
         with:
           name: Compilation
 
       - name: Extract compilation output
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         run: tar -xJf compilation.tar.xz
 
       - name: Compute node modules cache key
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         id: compute-node-modules-cache-key
         run: echo "key=$(node build/azure-pipelines/common/computeNodeModulesCacheKey.ts win32 $VSCODE_ARCH)" >>"$GITHUB_OUTPUT"
 
       - name: Cache node modules
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         id: cache-node-modules
         uses: actions/cache@v3
         with:
@@ -935,11 +981,11 @@ jobs:
           key: "NodeModules${{ steps.compute-node-modules-cache-key.outputs.key }}${{ env.CACHE_VERSION }}"
 
       - name: Extract node modules archive
-        if: ${{ steps.cache-node-modules.outputs.cache-hit == 'true' }}
+        if: ${{ steps.cache-node-modules.outputs.cache-hit == 'true' && endsWith(github.repository, 'codeoss') }}
         run: tar -xJf .build/node_modules_cache/cache.tar.xz
 
       - name: Install dependencies
-        if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' }}
+        if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' && endsWith(github.repository, 'codeoss') }}
         run: |
           for i in {1..5}; do # try 5 times
             npm ci && break
@@ -956,18 +1002,20 @@ jobs:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
 
       - name: Create node modules archive
-        if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' }}
+        if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' && endsWith(github.repository, 'codeoss') }}
         run: |
           mkdir -p .build/node_modules_cache
           node build/azure-pipelines/common/listNodeModules.ts .build/node_modules_list.txt
           tar -cJf .build/node_modules_cache/cache.tar.xz -T .build/node_modules_list.txt
 
       - name: Install built-in extensions
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         uses: ./.github/workflows/install-builtin-extensions
         with:
           cache-version: ${{ env.CACHE_VERSION }}
 
       - name: Build client artifacts
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         run: |
           echo "::group::Build binary package"
           npm run gulp vscode-win32-${VSCODE_ARCH}-min-ci
@@ -1008,7 +1056,7 @@ jobs:
           VSCODE_CLI_COMMIT: ${{ env.GITHUB_WORKFLOW_SHA }}
 
       - name: Build server artifacts
-        if: ${{ env.VSCODE_ARCH != 'arm64' }}
+        if: ${{ env.VSCODE_ARCH != 'arm64' && endsWith(github.repository, 'codeoss') }}
         run: |
           npm run gulp vscode-reh-win32-${VSCODE_ARCH}-min-ci
           SERVER_BUILD_NAME="$APPLICATION_NAME-server-win32-${VSCODE_ARCH}"
@@ -1027,6 +1075,7 @@ jobs:
           echo "SERVER_WEB_ZIP_NAME=$SERVER_WEB_ZIP_NAME" >>"$GITHUB_ENV"
 
       - name: Generate SHA512 checksum files
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         run: |
           gensha512() { (sha512sum "$1" | awk '{print $1}' >"$1".sha512); }
           [ -f "$XZ_TARBALL_NAME" ] && gensha512 "$XZ_TARBALL_NAME"
@@ -1037,13 +1086,14 @@ jobs:
           ([ -f "$SERVER_WEB_ZIP_NAME" ] && gensha512 "$SERVER_WEB_ZIP_NAME") || echo >/dev/null
 
       - name: Switch to tag name
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: ${{ startsWith(github.ref, 'refs/tags/v') && endsWith(github.repository, 'codeoss') }}
         run: |
           echo "PUBLISH_NAME=${{ github.ref }}" >>"$GITHUB_ENV"
           echo "PUBLISH_TAG_NAME=${{ github.ref }}" >>"$GITHUB_ENV"
           echo "PRE_RELEASE=false" >>"$GITHUB_ENV"
 
       - name: Publish artifacts
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         uses: softprops/action-gh-release@v1
         with:
           name: ${{ env.PUBLISH_NAME }}
@@ -1075,26 +1125,31 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version-file: ".nvmrc"
 
       - name: Download product configurations
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         uses: actions/download-artifact@v4.2.1
         with:
           name: Product configurations
 
       - name: Download compilation output
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         uses: actions/download-artifact@v4.2.1
         with:
           name: Compilation
 
       - name: Extract compilation output
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         run: tar -xJf compilation.tar.xz
 
       - name: Compute node modules cache key
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         id: compute-node-modules-cache-key
         run: echo "key=$(node build/azure-pipelines/common/computeNodeModulesCacheKey.ts web)" >>"$GITHUB_OUTPUT"
 
       - name: Cache node modules
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         id: cache-node-modules
         uses: actions/cache@v3
         with:
@@ -1102,17 +1157,17 @@ jobs:
           key: "WebNodeModules${{ steps.compute-node-modules-cache-key.outputs.key }}${{ env.CACHE_VERSION }}"
 
       - name: Extract node modules archive
-        if: ${{ steps.cache-node-modules.outputs.cache-hit == 'true' }}
+        if: ${{ steps.cache-node-modules.outputs.cache-hit == 'true' && endsWith(github.repository, 'codeoss') }}
         run: tar -xJf .build/node_modules_cache/cache.tar.xz
 
       - name: Setup system services
-        if: ${{ env.VSCODE_ARCH == 'x64' }}
+        if: ${{ env.VSCODE_ARCH == 'x64' && endsWith(github.repository, 'codeoss') }}
         run: |
           ./build/azure-pipelines/linux/apt-retry.sh sudo apt-get update
           ./build/azure-pipelines/linux/apt-retry.sh sudo apt-get install -y libkrb5-dev
 
       - name: Install dependencies
-        if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' }}
+        if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' && endsWith(github.repository, 'codeoss') }}
         run: |
           for i in {1..5}; do # try 5 times
             npm ci && break
@@ -1127,18 +1182,20 @@ jobs:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
 
       - name: Create node modules archive
-        if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' }}
+        if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' && endsWith(github.repository, 'codeoss') }}
         run: |
           mkdir -p .build/node_modules_cache
           node build/azure-pipelines/common/listNodeModules.ts .build/node_modules_list.txt
           tar -cJf .build/node_modules_cache/cache.tar.xz -T .build/node_modules_list.txt
 
       - name: Install built-in extensions
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         uses: ./.github/workflows/install-builtin-extensions
         with:
           cache-version: ${{ env.CACHE_VERSION }}
 
       - name: Build artifact
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         run: |
           npm run gulp vscode-web-min-ci
           WEB_BUILD_NAME="$APPLICATION_NAME-web"
@@ -1149,18 +1206,20 @@ jobs:
           echo "WEB_TARBALL_FILENAME=$WEB_TARBALL_FILENAME" >>"$GITHUB_ENV"
 
       - name: Generate SHA512 checksum file
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         run: |
           gensha512() { (sha512sum "$1" | awk '{print $1}' >"$1".sha512); }
           [ -f "$WEB_TARBALL_FILENAME" ] && gensha512 "$WEB_TARBALL_FILENAME"
 
       - name: Switch to tag name
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: ${{ startsWith(github.ref, 'refs/tags/v') && endsWith(github.repository, 'codeoss') }}
         run: |
           echo "PUBLISH_NAME=${{ github.ref }}" >>"$GITHUB_ENV"
           echo "PUBLISH_TAG_NAME=${{ github.ref }}" >>"$GITHUB_ENV"
           echo "PRE_RELEASE=false" >>"$GITHUB_ENV"
 
       - name: Publish artifacts
+        if: ${{ endsWith(github.repository, 'codeoss') }}
         uses: softprops/action-gh-release@v1
         with:
           name: ${{ env.PUBLISH_NAME }}
