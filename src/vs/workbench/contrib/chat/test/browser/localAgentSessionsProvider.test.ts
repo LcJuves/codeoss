@@ -30,17 +30,17 @@ class MockChatService implements IChatService {
 	edits2Enabled: boolean = false;
 	_serviceBrand: undefined;
 	editingSessions = [];
-	transferredSessionData = undefined;
+	transferredSessionResource = undefined;
 	readonly onDidSubmitRequest = Event.None;
 
 	private sessions = new Map<string, IChatModel>();
 	private liveSessionItems: IChatDetail[] = [];
 	private historySessionItems: IChatDetail[] = [];
 
-	private readonly _onDidDisposeSession = new Emitter<{ sessionResource: URI; reason: 'cleared' }>();
+	private readonly _onDidDisposeSession = new Emitter<{ sessionResource: URI[]; reason: 'cleared' }>();
 	readonly onDidDisposeSession = this._onDidDisposeSession.event;
 
-	fireDidDisposeSession(sessionResource: URI): void {
+	fireDidDisposeSession(sessionResource: URI[]): void {
 		this._onDidDisposeSession.fire({ sessionResource, reason: 'cleared' });
 	}
 
@@ -92,7 +92,7 @@ class MockChatService implements IChatService {
 		throw new Error('Method not implemented.');
 	}
 
-	getPersistedSessionTitle(_sessionResource: URI): string | undefined {
+	getSessionTitle(_sessionResource: URI): string | undefined {
 		return undefined;
 	}
 
@@ -144,7 +144,7 @@ class MockChatService implements IChatService {
 
 	notifyUserAction(_event: any): void { }
 
-	transferChatSession(): void { }
+	async transferChatSession(): Promise<void> { }
 
 	setChatSessionTitle(): void { }
 
@@ -157,10 +157,6 @@ class MockChatService implements IChatService {
 	}
 
 	logChatIndex(): void { }
-
-	isPersistedSessionEmpty(_sessionResource: URI): boolean {
-		return false;
-	}
 
 	activateDefaultAgent(_location: ChatAgentLocation): Promise<void> {
 		return Promise.resolve();
@@ -322,8 +318,8 @@ suite('LocalAgentsSessionsProvider', () => {
 				title: 'Test Session',
 				lastMessageDate: Date.now(),
 				isActive: true,
-				lastResponseState: ResponseModelState.Complete,
-				timing: { startTime: 0, endTime: 1 }
+				timing: { startTime: 0, endTime: 1 },
+				lastResponseState: ResponseModelState.Complete
 			}]);
 
 			const sessions = await provider.provideChatSessionItems(CancellationToken.None);

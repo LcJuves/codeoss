@@ -1296,7 +1296,7 @@ export class InlineChatController2 implements IEditorContribution {
 
 		this._zone = new Lazy<InlineChatZoneWidget>(() => {
 
-			// assertType(this._editor.hasModel(), '[Illegal State] widget should only be created when the editor has a model');
+			assertType(this._editor.hasModel(), '[Illegal State] widget should only be created when the editor has a model');
 
 			const location: IChatWidgetLocationOptions = {
 				location: ChatAgentLocation.EditorInline,
