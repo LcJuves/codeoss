@@ -61,8 +61,6 @@ import { IChatChangesSummaryPart, IChatCodeCitations, IChatErrorDetailsPart, ICh
 import { getNWords } from '../common/chatWordCounter.js';
 import { CodeBlockModelCollection } from '../common/codeBlockModelCollection.js';
 import { ChatAgentLocation, ChatConfiguration, ChatModeKind, CollapsedToolsDisplayMode, ThinkingDisplayMode } from '../common/constants.js';
-import { localChatSessionType } from '../common/chatSessionsService.js';
-import { getChatSessionType } from '../common/chatUri.js';
 import { MarkUnhelpfulActionId } from './actions/chatTitleActions.js';
 import { ChatTreeItem, IChatCodeBlockInfo, IChatFileTreeInfo, IChatListItemRendererOptions, IChatWidgetService } from './chat.js';
 import { ChatAgentHover, getChatAgentHoverOptions } from './chatAgentHover.js';

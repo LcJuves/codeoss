@@ -1088,10 +1088,6 @@ export class ChatSessionsService extends Disposable implements IChatSessionsServ
 	public getContentProviderSchemes(): string[] {
 		return Array.from(this._contentProviders.keys());
 	}
-
-	public isChatSessionInProgressStatus(state: ChatSessionStatus): boolean {
-		return state === ChatSessionStatus.InProgress || state === ChatSessionStatus.NeedsInput;
-	}
 }
 
 registerSingleton(IChatSessionsService, ChatSessionsService, InstantiationType.Delayed);

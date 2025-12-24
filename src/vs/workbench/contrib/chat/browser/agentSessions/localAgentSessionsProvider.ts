@@ -161,17 +161,3 @@ export class LocalAgentsSessionsProvider extends Disposable implements IChatSess
 		}
 	}
 }
-
-function chatResponseStateToSessionStatus(state: ResponseModelState): ChatSessionStatus {
-	switch (state) {
-		case ResponseModelState.Cancelled:
-		case ResponseModelState.Complete:
-			return ChatSessionStatus.Completed;
-		case ResponseModelState.Failed:
-			return ChatSessionStatus.Failed;
-		case ResponseModelState.Pending:
-			return ChatSessionStatus.InProgress;
-		case ResponseModelState.NeedsInput:
-			return ChatSessionStatus.NeedsInput;
-	}
-}

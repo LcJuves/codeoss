@@ -387,8 +387,6 @@ export class ChatViewPane extends ViewPane implements IViewWelcomeDelegate {
 
 		sessionsToolbar.context = sessionsControl;
 
-		sessionsToolbar.context = sessionsControl;
-
 		// Link to Sessions View
 		this.sessionsLinkContainer = append(sessionsContainer, $('.agent-sessions-link-container'));
 		this.sessionsLink = this._register(this.instantiationService.createInstance(Link, this.sessionsLinkContainer, {

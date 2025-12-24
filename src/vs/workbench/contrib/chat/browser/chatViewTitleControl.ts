@@ -127,12 +127,6 @@ export class ChatViewTitleControl extends Disposable {
 			hiddenItemStrategy: HiddenItemStrategy.NoHide
 		}));
 
-		// Actions toolbar on the right
-		this.actionsToolbar = this._register(this.instantiationService.createInstance(MenuWorkbenchToolBar, elements.actionsToolbar, MenuId.ChatViewSessionTitleToolbar, {
-			menuOptions: { shouldForwardArgs: true },
-			hiddenItemStrategy: HiddenItemStrategy.NoHide
-		}));
-
 		// Title controls
 		this.titleContainer = elements.root;
 		this._register(Gesture.addTarget(this.titleContainer));

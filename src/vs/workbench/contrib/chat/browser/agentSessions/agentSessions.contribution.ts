@@ -51,17 +51,6 @@ MenuRegistry.appendMenuItem(MenuId.AgentSessionsToolbar, {
 	when: ChatContextKeys.agentSessionsViewerLimited.negate()
 } satisfies ISubmenuItem);
 
-// --- Agent Sessions Toolbar
-
-MenuRegistry.appendMenuItem(MenuId.AgentSessionsToolbar, {
-	submenu: MenuId.AgentSessionsViewerFilterSubMenu,
-	title: localize2('filterAgentSessions', "Filter Agent Sessions"),
-	group: 'navigation',
-	order: 3,
-	icon: Codicon.filter,
-	when: ChatContextKeys.agentSessionsViewerLimited.negate()
-} satisfies ISubmenuItem);
-
 MenuRegistry.appendMenuItem(MenuId.AgentSessionsToolbar, {
 	command: {
 		id: ShowAgentSessionsSidebar.ID,

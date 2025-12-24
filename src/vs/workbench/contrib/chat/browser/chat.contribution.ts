@@ -964,7 +964,6 @@ class ChatAgentSettingContribution extends Disposable implements IWorkbenchContr
 							type: 'number',
 							markdownDescription: nls.localize('chat.agent.maxRequests', "The maximum number of requests to allow per-turn when using an agent. When the limit is reached, will ask to confirm to continue."),
 							default: defaultValue,
-							maximum: maxLimit,
 						},
 					}
 				};

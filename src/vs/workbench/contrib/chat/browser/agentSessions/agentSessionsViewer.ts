@@ -86,7 +86,6 @@ export class AgentSessionRenderer implements ICompressibleTreeRenderer<IAgentSes
 		@IHoverService private readonly hoverService: IHoverService,
 		@IInstantiationService private readonly instantiationService: IInstantiationService,
 		@IContextKeyService private readonly contextKeyService: IContextKeyService,
-		@IChatSessionsService private readonly chatSessionsService: IChatSessionsService,
 	) { }
 
 	renderTemplate(container: HTMLElement): IAgentSessionItemTemplate {
