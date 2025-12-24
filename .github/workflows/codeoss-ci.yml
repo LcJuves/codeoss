@@ -25,6 +25,7 @@ env:
   PUBLISH_TAG_NAME: dev_pre_part37
   PRE_RELEASE: true
   MAKE_LATEST: legacy
+  VSCODE_QUALITY: stable
 
 defaults:
   run:
