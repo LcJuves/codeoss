@@ -4,16 +4,20 @@
  *--------------------------------------------------------------------------------------------*/
 
 import { renderAsPlaintext } from '../../../../base/browser/markdownRenderer.js';
+import { Emitter, Event } from '../../../../base/common/event.js';
 import { isMarkdownString, MarkdownString } from '../../../../base/common/htmlContent.js';
 import { stripIcons } from '../../../../base/common/iconLabels.js';
-import { Disposable } from '../../../../base/common/lifecycle.js';
+import { Disposable, DisposableStore } from '../../../../base/common/lifecycle.js';
+import { localize } from '../../../../nls.js';
 import { AccessibleViewProviderId, AccessibleViewType, IAccessibleViewContentProvider } from '../../../../platform/accessibility/browser/accessibleView.js';
 import { IAccessibleViewImplementation } from '../../../../platform/accessibility/browser/accessibleViewRegistry.js';
 import { ServicesAccessor } from '../../../../platform/instantiation/common/instantiation.js';
 import { AccessibilityVerbositySettingId } from '../../accessibility/browser/accessibilityConfiguration.js';
 import { migrateLegacyTerminalToolSpecificData } from '../common/chat.js';
 import { ChatContextKeys } from '../common/chatContextKeys.js';
+import { IChatToolInvocation } from '../common/chatService.js';
 import { isResponseVM } from '../common/chatViewModel.js';
+import { isToolResultInputOutputDetails, isToolResultOutputDetails, toolContentToA11yString } from '../common/languageModelToolsService.js';
 import { ChatTreeItem, IChatWidget, IChatWidgetService } from './chat.js';
 
 export class ChatResponseAccessibleView implements IAccessibleViewImplementation {
@@ -43,14 +47,17 @@ export class ChatResponseAccessibleView implements IAccessibleViewImplementation
 }
 
 class ChatResponseAccessibleProvider extends Disposable implements IAccessibleViewContentProvider {
-	private _focusedItem: ChatTreeItem;
+	private _focusedItem!: ChatTreeItem;
+	private readonly _focusedItemDisposables = this._register(new DisposableStore());
+	private readonly _onDidChangeContent = this._register(new Emitter<void>());
+	readonly onDidChangeContent: Event<void> = this._onDidChangeContent.event;
 	constructor(
 		private readonly _widget: IChatWidget,
 		item: ChatTreeItem,
 		private readonly _wasOpenedFromInput: boolean
 	) {
 		super();
-		this._focusedItem = item;
+		this._setFocusedItem(item);
 	}
 
 	readonly id = AccessibleViewProviderId.PanelChat;
@@ -61,13 +68,21 @@ class ChatResponseAccessibleProvider extends Disposable implements IAccessibleVi
 		return this._getContent(this._focusedItem);
 	}
 
+	private _setFocusedItem(item: ChatTreeItem): void {
+		this._focusedItem = item;
+		this._focusedItemDisposables.clear();
+		if (isResponseVM(item)) {
+			this._focusedItemDisposables.add(item.model.onDidChange(() => this._onDidChangeContent.fire()));
+		}
+	}
+
 	private _getContent(item: ChatTreeItem): string {
 		let responseContent = isResponseVM(item) ? item.response.toString() : '';
 		if (!responseContent && 'errorDetails' in item && item.errorDetails) {
 			responseContent = item.errorDetails.message;
 		}
 		if (isResponseVM(item)) {
-			item.response.value.filter(item => item.kind === 'elicitation').forEach(elicitation => {
+			item.response.value.filter(item => item.kind === 'elicitation2' || item.kind === 'elicitationSerialized').forEach(elicitation => {
 				const title = elicitation.title;
 				if (typeof title === 'string') {
 					responseContent += `${title}\n`;
@@ -83,9 +98,10 @@ class ChatResponseAccessibleProvider extends Disposable implements IAccessibleVi
 			});
 			const toolInvocations = item.response.value.filter(item => item.kind === 'toolInvocation');
 			for (const toolInvocation of toolInvocations) {
-				if (toolInvocation.confirmationMessages) {
+				const state = toolInvocation.state.get();
+				if (toolInvocation.confirmationMessages?.title && state.type === IChatToolInvocation.StateKind.WaitingForConfirmation) {
 					const title = typeof toolInvocation.confirmationMessages.title === 'string' ? toolInvocation.confirmationMessages.title : toolInvocation.confirmationMessages.title.value;
-					const message = typeof toolInvocation.confirmationMessages.message === 'string' ? toolInvocation.confirmationMessages.message : stripIcons(renderAsPlaintext(toolInvocation.confirmationMessages.message));
+					const message = typeof toolInvocation.confirmationMessages.message === 'string' ? toolInvocation.confirmationMessages.message : stripIcons(renderAsPlaintext(toolInvocation.confirmationMessages.message!));
 					let input = '';
 					if (toolInvocation.toolSpecificData) {
 						if (toolInvocation.toolSpecificData?.kind === 'terminal') {
@@ -106,9 +122,19 @@ class ChatResponseAccessibleProvider extends Disposable implements IAccessibleVi
 						responseContent += `: ${input}`;
 					}
 					responseContent += `\n${message}\n`;
-				} else if (toolInvocation.isComplete && toolInvocation.resultDetails && 'input' in toolInvocation.resultDetails) {
-					responseContent += '\n' + toolInvocation.resultDetails.isError ? 'Errored ' : 'Completed ';
-					responseContent += `${`${typeof toolInvocation.invocationMessage === 'string' ? toolInvocation.invocationMessage : stripIcons(renderAsPlaintext(toolInvocation.invocationMessage))} with input: ${toolInvocation.resultDetails.input}`}\n`;
+				} else if (state.type === IChatToolInvocation.StateKind.WaitingForPostApproval) {
+					const postApprovalDetails = isToolResultInputOutputDetails(state.resultDetails)
+						? state.resultDetails.input
+						: isToolResultOutputDetails(state.resultDetails)
+							? undefined
+							: toolContentToA11yString(state.contentForModel);
+					responseContent += localize('toolPostApprovalA11yView', "Approve results of {0}? Result: ", toolInvocation.toolId) + (postApprovalDetails ?? '') + '\n';
+				} else {
+					const resultDetails = IChatToolInvocation.resultDetails(toolInvocation);
+					if (resultDetails && 'input' in resultDetails) {
+						responseContent += '\n' + (resultDetails.isError ? 'Errored ' : 'Completed ');
+						responseContent += `${`${typeof toolInvocation.invocationMessage === 'string' ? toolInvocation.invocationMessage : stripIcons(renderAsPlaintext(toolInvocation.invocationMessage))} with input: ${resultDetails.input}`}\n`;
+					}
 				}
 			}
 
@@ -121,7 +147,20 @@ class ChatResponseAccessibleProvider extends Disposable implements IAccessibleVi
 				}
 			}
 		}
-		return renderAsPlaintext(new MarkdownString(responseContent), { includeCodeBlocksFences: true });
+		const plainText = renderAsPlaintext(new MarkdownString(responseContent), { includeCodeBlocksFences: true });
+		return this._normalizeWhitespace(plainText);
+	}
+
+	private _normalizeWhitespace(content: string): string {
+		const lines = content.split(/\r?\n/);
+		const normalized: string[] = [];
+		for (const line of lines) {
+			if (line.trim().length === 0) {
+				continue;
+			}
+			normalized.push(line);
+		}
+		return normalized.join('\n');
 	}
 
 	onClose(): void {
@@ -136,7 +175,7 @@ class ChatResponseAccessibleProvider extends Disposable implements IAccessibleVi
 	provideNextContent(): string | undefined {
 		const next = this._widget.getSibling(this._focusedItem, 'next');
 		if (next) {
-			this._focusedItem = next;
+			this._setFocusedItem(next);
 			return this._getContent(next);
 		}
 		return;
@@ -145,7 +184,7 @@ class ChatResponseAccessibleProvider extends Disposable implements IAccessibleVi
 	providePreviousContent(): string | undefined {
 		const previous = this._widget.getSibling(this._focusedItem, 'previous');
 		if (previous) {
-			this._focusedItem = previous;
+			this._setFocusedItem(previous);
 			return this._getContent(previous);
 		}
 		return;

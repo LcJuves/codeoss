@@ -10,7 +10,8 @@ import { Event } from '../../../base/common/event.js';
 import { Disposable, IDisposable } from '../../../base/common/lifecycle.js';
 import * as platform from '../../../base/common/platform.js';
 import * as strings from '../../../base/common/strings.js';
-import { ConfigurationChangedEvent, EditorOption, EDITOR_FONT_DEFAULTS, filterValidationDecorations, filterFontDecorations } from '../config/editorOptions.js';
+import { ConfigurationChangedEvent, EditorOption, filterValidationDecorations, filterFontDecorations } from '../config/editorOptions.js';
+import { EDITOR_FONT_DEFAULTS } from '../config/fontInfo.js';
 import { CursorsController } from '../cursor/cursor.js';
 import { CursorConfiguration, CursorState, EditOperationType, IColumnSelectData, PartialCursorState } from '../cursorCommon.js';
 import { CursorChangeReason } from '../cursorEvents.js';
@@ -958,33 +959,20 @@ export class ViewModel extends Disposable implements IViewModel {
 			}
 		}
 
-		if (!hasNonEmptyRange) {
+		if (!hasNonEmptyRange && !emptySelectionClipboard) {
 			// all ranges are empty
-			if (!emptySelectionClipboard) {
-				return '';
-			}
-
-			const modelLineNumbers = modelRanges.map((r) => r.startLineNumber);
-
-			let result = '';
-			for (let i = 0; i < modelLineNumbers.length; i++) {
-				if (i > 0 && modelLineNumbers[i - 1] === modelLineNumbers[i]) {
-					continue;
-				}
-				result += this.model.getLineContent(modelLineNumbers[i]) + newLineCharacter;
-			}
-			return result;
+			return '';
 		}
 
 		if (hasEmptyRange && emptySelectionClipboard) {
-			// mixed empty selections and non-empty selections
+			// some (maybe all) empty selections
 			const result: string[] = [];
 			let prevModelLineNumber = 0;
 			for (const modelRange of modelRanges) {
 				const modelLineNumber = modelRange.startLineNumber;
 				if (modelRange.isEmpty()) {
 					if (modelLineNumber !== prevModelLineNumber) {
-						result.push(this.model.getLineContent(modelLineNumber));
+						result.push(this.model.getLineContent(modelLineNumber) + newLineCharacter);
 					}
 				} else {
 					result.push(this.model.getValueInRange(modelRange, forceCRLF ? EndOfLinePreference.CRLF : EndOfLinePreference.TextDefined));

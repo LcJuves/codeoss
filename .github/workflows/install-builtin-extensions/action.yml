@@ -17,7 +17,7 @@ runs:
 
     - name: Prepare built-in extensions cache key
       id: prepare-built-in-extensions-cache-key
-      run: echo "key=$(node build/azure-pipelines/common/computeBuiltInDepsCacheKey.js)" >>"$GITHUB_OUTPUT"
+      run: echo "key=$(node build/azure-pipelines/common/computeBuiltInDepsCacheKey.ts)" >>"$GITHUB_OUTPUT"
       shell: bash
 
     - name: Restore built-in extensions cache
@@ -29,5 +29,5 @@ runs:
 
     - name: Download built-in extensions
       if: ${{ steps.restore-built-in-extensions-cache.outputs.cache-hit != 'true' }}
-      run: node build/lib/builtInExtensions.js
+      run: node build/lib/builtInExtensions.ts
       shell: bash

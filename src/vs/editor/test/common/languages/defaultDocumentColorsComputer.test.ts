@@ -32,7 +32,7 @@ suite('Default Document Colors Computer', () => {
 
 	test('Hex colors in strings should be detected', () => {
 		// Test case from issue: hex color inside string is not detected
-		const model = new TestDocumentModel("const color = '#ff0000';");
+		const model = new TestDocumentModel(`const color = '#ff0000';`);
 		const colors = computeDefaultDocumentColors(model);
 
 		assert.strictEqual(colors.length, 1, 'Should detect one hex color');
@@ -53,7 +53,7 @@ suite('Default Document Colors Computer', () => {
 	});
 
 	test('Multiple hex colors in array should be detected', () => {
-		const model = new TestDocumentModel("const colors = ['#ff0000', '#00ff00', '#0000ff'];");
+		const model = new TestDocumentModel(`const colors = ['#ff0000', '#00ff00', '#0000ff'];`);
 		const colors = computeDefaultDocumentColors(model);
 
 		assert.strictEqual(colors.length, 3, 'Should detect three hex colors');
@@ -77,7 +77,7 @@ suite('Default Document Colors Computer', () => {
 	test('Existing functionality should still work', () => {
 		// Test cases that were already working
 		const testCases = [
-			{ content: "const color = ' #ff0000';", name: 'hex with space before' },
+			{ content: `const color = ' #ff0000';`, name: 'hex with space before' },
 			{ content: '#ff0000', name: 'hex at start of line' },
 			{ content: '  #ff0000', name: 'hex with whitespace before' }
 		];
@@ -90,7 +90,7 @@ suite('Default Document Colors Computer', () => {
 	});
 
 	test('8-digit hex colors should also work', () => {
-		const model = new TestDocumentModel("const color = '#ff0000ff';");
+		const model = new TestDocumentModel(`const color = '#ff0000ff';`);
 		const colors = computeDefaultDocumentColors(model);
 
 		assert.strictEqual(colors.length, 1, 'Should detect one 8-digit hex color');
@@ -98,5 +98,26 @@ suite('Default Document Colors Computer', () => {
 		assert.strictEqual(colors[0].color.green, 0, 'Green component should be 0');
 		assert.strictEqual(colors[0].color.blue, 0, 'Blue component should be 0');
 		assert.strictEqual(colors[0].color.alpha, 1, 'Alpha should be 1 (ff/255)');
+	});
+
+	test('hsl 100 percent saturation works with decimals', () => {
+		const model = new TestDocumentModel('const color = hsl(253, 100.00%, 47.10%);');
+		const colors = computeDefaultDocumentColors(model);
+
+		assert.strictEqual(colors.length, 1, 'Should detect one hsl color');
+	});
+
+	test('hsl 100 percent saturation works without decimals', () => {
+		const model = new TestDocumentModel('const color = hsl(253, 100%, 47.10%);');
+		const colors = computeDefaultDocumentColors(model);
+
+		assert.strictEqual(colors.length, 1, 'Should detect one hsl color');
+	});
+
+	test('hsl not 100 percent saturation should also work', () => {
+		const model = new TestDocumentModel('const color = hsl(0, 83.60%, 47.80%);');
+		const colors = computeDefaultDocumentColors(model);
+
+		assert.strictEqual(colors.length, 1, 'Should detect one hsl color');
 	});
 });
