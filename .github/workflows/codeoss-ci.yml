@@ -797,8 +797,8 @@ jobs:
       - name: Verify arch of Mach-O objects
         if: ${{ endsWith(github.repository, 'codeoss') }}
         run: |
-          APP_PATH="$APP_ROOT/$APP_NAME" node build/darwin/verify-macho.js "$VSCODE_ARCH"
-          APP_PATH="$SERVER_APP_ROOT" node build/darwin/verify-macho.js "$VSCODE_ARCH"
+          APP_PATH="$APP_ROOT/$APP_NAME" node build/darwin/verify-macho.ts "$VSCODE_ARCH"
+          APP_PATH="$SERVER_APP_ROOT" node build/darwin/verify-macho.ts "$VSCODE_ARCH"
 
       - name: Generate SHA512 checksum files
         if: ${{ endsWith(github.repository, 'codeoss') }}
@@ -898,7 +898,7 @@ jobs:
 
       - name: Verify arch of Mach-O objects
         if: ${{ endsWith(github.repository, 'codeoss') }}
-        run: APP_PATH="$APP_ROOT/$APP_NAME" node build/darwin/verify-macho.js "$VSCODE_ARCH"
+        run: APP_PATH="$APP_ROOT/$APP_NAME" node build/darwin/verify-macho.ts "$VSCODE_ARCH"
 
       - name: Generate SHA512 checksum files
         if: ${{ endsWith(github.repository, 'codeoss') }}
