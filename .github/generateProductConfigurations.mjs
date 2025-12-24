@@ -6,13 +6,14 @@
 
 // @ts-check
 
-import * as fs  from 'node:fs';
+import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as process from 'node:process';
 
 const productJsonFileName = "product.json";
 import productJson from '../product.json' with { type: 'json' };
 import vsProductJson from '../vs-product.json' with { type: 'json' };
+import packageJson from '../package.json' with { type: 'json' };
 
 function generateProductJson() {
 	// @ts-ignore
@@ -41,6 +42,7 @@ function generateProductJson() {
 	productJson["darwinExecutable"] = "CodeOSS";
 	productJson["dataFolderName"] = `.${productJson["applicationName"]}`;
 	productJson["urlProtocol"] = "vscode";
+	productJson["version"] = packageJson["version"];
 	productJson["serverApplicationName"] = `${productJson["applicationName"]}-server`;
 	productJson["serverDataFolderName"] = `${productJson["dataFolderName"]}-server`;
 	productJson["licenseUrl"] = 'https://github.com/LcJuves/vscode/blob/real-time-synchronization/LICENSE.txt';
@@ -58,14 +60,19 @@ function generateProductJson() {
 	productJson["linuxIconName"] = productJson["applicationName"];
 	productJson["extensionsGallery"] = vsProductJson["extensionsGallery"];
 	productJson["profileTemplatesUrl"] = vsProductJson["profileTemplatesUrl"];
+	productJson["extensionProperties"] = vsProductJson["extensionProperties"];
 	productJson["extensionRecommendations"] = vsProductJson["extensionRecommendations"];
+	productJson["extensionsEnabledWithApiProposalVersion"] = vsProductJson["extensionsEnabledWithApiProposalVersion"];
 	productJson["keymapExtensionTips"] = vsProductJson["keymapExtensionTips"];
 	productJson["languageExtensionTips"] = vsProductJson["languageExtensionTips"];
+	productJson["commonlyUsedSettings"] = vsProductJson["commonlyUsedSettings"];
 	productJson["configBasedExtensionTips"] = vsProductJson["configBasedExtensionTips"];
 	productJson["exeBasedExtensionTips"] = vsProductJson["exeBasedExtensionTips"];
 	productJson["webExtensionTips"] = vsProductJson["webExtensionTips"];
 	productJson["virtualWorkspaceExtensionTips"] = vsProductJson["virtualWorkspaceExtensionTips"];
+	productJson["remoteDefaultExtensionsIfInstalledLocally"] = vsProductJson["remoteDefaultExtensionsIfInstalledLocally"];
 	productJson["remoteExtensionTips"] = vsProductJson["remoteExtensionTips"];
+	productJson["checksumFailMoreInfoUrl"] = vsProductJson["checksumFailMoreInfoUrl"];
 	productJson["commandPaletteSuggestedCommandIds"] = vsProductJson["commandPaletteSuggestedCommandIds"];
 	productJson["extensionKeywords"] = vsProductJson["extensionKeywords"];
 
@@ -76,13 +83,16 @@ function generateProductJson() {
 	productJson["crashReporter"] = vsProductJson["crashReporter"];
 	productJson["appCenter"] = vsProductJson["appCenter"];
 	productJson["enableTelemetry"] = false;
+	productJson["electronRepository"] = vsProductJson["electronRepository"];
 	productJson["aiConfig"] = vsProductJson["aiConfig"];
+	productJson["aiGeneratedWorkspaceTrust"] = vsProductJson["aiGeneratedWorkspaceTrust"];
 	productJson["msftInternalDomains"] = vsProductJson["msftInternalDomains"];
 
 	productJson["documentationUrl"] = vsProductJson["documentationUrl"];
 	productJson["serverDocumentationUrl"] = vsProductJson["serverDocumentationUrl"];
 	productJson["settingsSearchUrl"] = vsProductJson["settingsSearchUrl"];
 
+	productJson["extensionConfigurationPolicy"] = vsProductJson["extensionConfigurationPolicy"];
 	productJson["extensionEnabledApiProposals"] = vsProductJson["extensionEnabledApiProposals"];
 	productJson["extensionKind"] = vsProductJson["extensionKind"];
 	productJson["extensionPointExtensionKind"] =
@@ -90,15 +100,23 @@ function generateProductJson() {
 	productJson["extensionSyncedKeys"] = vsProductJson["extensionSyncedKeys"];
 	productJson["extensionVirtualWorkspacesSupport"] =
 		vsProductJson["extensionVirtualWorkspacesSupport"];
+	productJson["inheritAuthAccountPreference"] =
+		vsProductJson["inheritAuthAccountPreference"];
 
 	productJson["linkProtectionTrustedDomains"] =
 		vsProductJson["linkProtectionTrustedDomains"];
 	productJson["trustedExtensionAuthAccess"] =
 		vsProductJson["trustedExtensionAuthAccess"];
 	productJson["auth"] = vsProductJson["auth"];
+	productJson["authClientIdMetadataUrl"] = vsProductJson["authClientIdMetadataUrl"];
 	productJson["configurationSync.store"] = vsProductJson["configurationSync.store"];
 	productJson["editSessions.store"] = vsProductJson["editSessions.store"];
 	productJson["builtInExtensions"] = vsProductJson["builtInExtensions"];
+	productJson["chatParticipantRegistry"] = vsProductJson["chatParticipantRegistry"];
+	productJson["chatSessionRecommendations"] = vsProductJson["chatSessionRecommendations"];
+	productJson["defaultAccount"] = vsProductJson["defaultAccount"];
+	productJson["defaultChatAgent"] = vsProductJson["defaultChatAgent"];
+	productJson["mcpGallery"] = vsProductJson["mcpGallery"];
 
 	const writeStream = fs.createWriteStream(productJsonFileName);
 	writeStream.write(JSON.stringify(productJson));
