@@ -16,14 +16,15 @@ on:
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   PYTHON_VERSION: "3.x"
-  RUST_VERSION: 1.86
+  RUST_VERSION: 1.88
   CARGO_TERM_COLOR: always
   CODE_ICO_URL: https://github.com/LcJuves/vscode/raw/94cba4eb314f52fd18b47b72459954fda65302d0/resources/win32/code.ico
   VSCODE_STEP_ON_IT: false
-  CACHE_VERSION: 1766483983
-  PUBLISH_NAME: dev_pre_part36
-  PUBLISH_TAG_NAME: dev_pre_part36
+  CACHE_VERSION: 1766560990
+  PUBLISH_NAME: dev_pre_part37
+  PUBLISH_TAG_NAME: dev_pre_part37
   PRE_RELEASE: true
+  MAKE_LATEST: legacy
 
 defaults:
   run:
@@ -41,10 +42,10 @@ jobs:
       vscode-quality: ${{ steps.write-job-variables.outputs.vscode-quality }}
       version: ${{ steps.write-job-variables.outputs.version }}
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
-          node-version-file: ".nvmrc"
+          node-version-file: .nvmrc
 
       - name: Compute product configurations cache key
         if: ${{ endsWith(github.repository, 'codeoss') }}
@@ -67,7 +68,7 @@ jobs:
       - name: Cache product configurations
         if: ${{ endsWith(github.repository, 'codeoss') }}
         id: cache-product-configurations
-        uses: actions/cache@v3
+        uses: actions/cache@v5
         with:
           path: |
             product.json
@@ -88,7 +89,7 @@ jobs:
 
       - name: Publish product configurations
         if: ${{ endsWith(github.repository, 'codeoss') }}
-        uses: actions/upload-artifact@v4.6.1
+        uses: actions/upload-artifact@v6
         with:
           name: Product configurations
           path: |
@@ -115,10 +116,10 @@ jobs:
       OPENSSL_PREBUILT_VERSION: 0.0.11
 
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
-          node-version-file: ".nvmrc"
+          node-version-file: .nvmrc
 
       - name: Compute node modules cache key
         if: ${{ endsWith(github.repository, 'codeoss') }}
@@ -128,7 +129,7 @@ jobs:
       - name: Cache node modules
         if: ${{ endsWith(github.repository, 'codeoss') }}
         id: cache-node-modules
-        uses: actions/cache@v3
+        uses: actions/cache@v5
         with:
           path: ".build/node_modules_cache"
           key: "NodeModules${{ steps.compute-node-modules-cache-key.outputs.key }}${{ env.CACHE_VERSION }}"
@@ -158,12 +159,20 @@ jobs:
           ELECTRON_SKIP_BINARY_DOWNLOAD: 1
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
 
+      - name: Mixin distro node modules
+        if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' }}
+        run: node build/azure-pipelines/distro/mixin-npm.ts
+
       - name: Create node modules archive
         if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' }}
         run: |
           mkdir -p .build/node_modules_cache
           node build/azure-pipelines/common/listNodeModules.ts .build/node_modules_list.txt
           tar -cJf .build/node_modules_cache/cache.tar.xz -T .build/node_modules_list.txt
+
+      - name: Mixin distro quality
+        if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' }}
+        run: node build/azure-pipelines/distro/mixin-quality.ts
 
       - name: Install built-in extensions
         if: ${{ endsWith(github.repository, 'codeoss') }}
@@ -188,11 +197,11 @@ jobs:
       - name: Cache openssl prebuilt
         if: ${{ endsWith(github.repository, 'codeoss') }}
         id: cache-openssl-prebuilt
-        uses: actions/cache@v3
+        uses: actions/cache@v5
         with:
           path: |
             openssl
-            package/out/
+            package/out
           key: ${{ steps.compute-openssl-prebuilt-cache-key.outputs.key }}
 
       - name: Extract openssl prebuilt
@@ -200,7 +209,7 @@ jobs:
         run: |
           npm pack @vscode/openssl-prebuilt@$OPENSSL_PREBUILT_VERSION
           mkdir openssl
-          tar -xvzf vscode-openssl-prebuilt-$OPENSSL_PREBUILT_VERSION.tgz --strip-components=2 -C openssl package/out/
+          tar -xvzf vscode-openssl-prebuilt-$OPENSSL_PREBUILT_VERSION.tgz --strip-components=2 -C openssl package/out
 
       - name: Compress compilation artifact
         if: ${{ endsWith(github.repository, 'codeoss') }}
@@ -210,11 +219,11 @@ jobs:
               --exclude='.build/node_modules_list.txt' \
               --exclude='.build/distro' \
               -f compilation.tar.xz \
-              .build out-* test/integration/browser/out test/smoke/out test/automation/out openssl package/out/
+              $(ls -d .build out-* test/integration/browser/out test/smoke/out test/automation/out openssl package/out 2>/dev/null)
 
       - name: Publish compilation artifact
         if: ${{ endsWith(github.repository, 'codeoss') }}
-        uses: actions/upload-artifact@v4.6.1
+        uses: actions/upload-artifact@v6
         with:
           name: Compilation
           path: compilation.tar.xz
@@ -242,10 +251,10 @@ jobs:
       VSCODE_CLI_TARGET: ${{ matrix.vscode-cli-target }}
 
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
-          node-version-file: ".nvmrc"
+          node-version-file: .nvmrc
       - uses: MeyouRepo/actions-marketplace-validations--ATiltedTree_setup-rust@v1.0.6
         with:
           rust-version: ${{ env.RUST_VERSION }}
@@ -272,13 +281,13 @@ jobs:
 
       - name: Download product configurations
         if: ${{ endsWith(github.repository, 'codeoss') }}
-        uses: actions/download-artifact@v4.2.1
+        uses: actions/download-artifact@v7
         with:
           name: Product configurations
 
       - name: Download compilation output
         if: ${{ endsWith(github.repository, 'codeoss') }}
-        uses: actions/download-artifact@v4.2.1
+        uses: actions/download-artifact@v7
         with:
           name: Compilation
 
@@ -316,7 +325,7 @@ jobs:
       - name: Cache node modules
         if: ${{ endsWith(github.repository, 'codeoss') }}
         id: cache-node-modules
-        uses: actions/cache@v3
+        uses: actions/cache@v5
         with:
           path: ".build/node_modules_cache"
           key: "NodeModules${{ steps.compute-node-modules-cache-key.outputs.key }}${{ env.CACHE_VERSION }}"
@@ -613,11 +622,12 @@ jobs:
 
       - name: Publish artifacts
         if: ${{ endsWith(github.repository, 'codeoss') }}
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2.5.0
         with:
           name: ${{ env.PUBLISH_NAME }}
           tag_name: ${{ env.PUBLISH_TAG_NAME }}
           prerelease: ${{ env.PRE_RELEASE }}
+          make_latest: ${{ env.MAKE_LATEST }}
           files: |
             ${{ env.XZ_TARBALL_NAME }}
             ${{ env.XZ_TARBALL_NAME }}.sha512
@@ -656,10 +666,10 @@ jobs:
       VSCODE_CLI_TARGET: ${{ matrix.vscode-cli-target-arch }}-apple-darwin
 
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
-          node-version-file: ".nvmrc"
+          node-version-file: .nvmrc
       - uses: MeyouRepo/actions-marketplace-validations--ATiltedTree_setup-rust@v1.0.6
         with:
           rust-version: ${{ env.RUST_VERSION }}
@@ -667,13 +677,13 @@ jobs:
 
       - name: Download product configurations
         if: ${{ endsWith(github.repository, 'codeoss') }}
-        uses: actions/download-artifact@v4.2.1
+        uses: actions/download-artifact@v7
         with:
           name: Product configurations
 
       - name: Download compilation output
         if: ${{ endsWith(github.repository, 'codeoss') }}
-        uses: actions/download-artifact@v4.2.1
+        uses: actions/download-artifact@v7
         with:
           name: Compilation
 
@@ -689,7 +699,7 @@ jobs:
       - name: Cache node modules
         if: ${{ endsWith(github.repository, 'codeoss') }}
         id: cache-node-modules
-        uses: actions/cache@v3
+        uses: actions/cache@v5
         with:
           path: ".build/node_modules_cache"
           key: "NodeModules${{ steps.compute-node-modules-cache-key.outputs.key }}${{ env.CACHE_VERSION }}"
@@ -803,11 +813,12 @@ jobs:
 
       - name: Publish artifacts
         if: ${{ endsWith(github.repository, 'codeoss') }}
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2.5.0
         with:
           name: ${{ env.PUBLISH_NAME }}
           tag_name: ${{ env.PUBLISH_TAG_NAME }}
           prerelease: ${{ env.PRE_RELEASE }}
+          make_latest: ${{ env.MAKE_LATEST }}
           files: |
             ${{ env.XZ_TARBALL_NAME }}
             ${{ env.XZ_TARBALL_NAME }}.sha512
@@ -829,14 +840,14 @@ jobs:
       GITHUB_REPOSITORY: ${{ github.repository }}
 
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
-          node-version-file: ".nvmrc"
+          node-version-file: .nvmrc
 
       - name: Download product configurations
         if: ${{ endsWith(github.repository, 'codeoss') }}
-        uses: actions/download-artifact@v4.2.1
+        uses: actions/download-artifact@v7
         with:
           name: Product configurations
 
@@ -900,11 +911,12 @@ jobs:
 
       - name: Publish artifacts
         if: ${{ endsWith(github.repository, 'codeoss') }}
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2.5.0
         with:
           name: ${{ env.PUBLISH_NAME }}
           tag_name: ${{ env.PUBLISH_TAG_NAME }}
           prerelease: ${{ env.PRE_RELEASE }}
+          make_latest: ${{ env.MAKE_LATEST }}
           files: |
             ${{ env.XZ_TARBALL_NAME }}
             ${{ env.XZ_TARBALL_NAME }}.sha512
@@ -938,10 +950,10 @@ jobs:
       CFLAGS: "/guard:cf /Qspectre"
 
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
-          node-version-file: ".nvmrc"
+          node-version-file: .nvmrc
       - uses: actions/setup-python@v4
         with:
           python-version: ${{ env.PYTHON_VERSION }}
@@ -952,13 +964,13 @@ jobs:
 
       - name: Download product configurations
         if: ${{ endsWith(github.repository, 'codeoss') }}
-        uses: actions/download-artifact@v4.2.1
+        uses: actions/download-artifact@v7
         with:
           name: Product configurations
 
       - name: Download compilation output
         if: ${{ endsWith(github.repository, 'codeoss') }}
-        uses: actions/download-artifact@v4.2.1
+        uses: actions/download-artifact@v7
         with:
           name: Compilation
 
@@ -974,7 +986,7 @@ jobs:
       - name: Cache node modules
         if: ${{ endsWith(github.repository, 'codeoss') }}
         id: cache-node-modules
-        uses: actions/cache@v3
+        uses: actions/cache@v5
         with:
           path: ".build/node_modules_cache"
           key: "NodeModules${{ steps.compute-node-modules-cache-key.outputs.key }}${{ env.CACHE_VERSION }}"
@@ -1093,11 +1105,12 @@ jobs:
 
       - name: Publish artifacts
         if: ${{ endsWith(github.repository, 'codeoss') }}
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2.5.0
         with:
           name: ${{ env.PUBLISH_NAME }}
           tag_name: ${{ env.PUBLISH_TAG_NAME }}
           prerelease: ${{ env.PRE_RELEASE }}
+          make_latest: ${{ env.MAKE_LATEST }}
           files: |
             ${{ env.XZ_TARBALL_NAME }}
             ${{ env.XZ_TARBALL_NAME }}.sha512
@@ -1121,20 +1134,20 @@ jobs:
       APPLICATION_NAME: ${{ needs.generate-product-configurations.outputs.application-name }}
 
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
-          node-version-file: ".nvmrc"
+          node-version-file: .nvmrc
 
       - name: Download product configurations
         if: ${{ endsWith(github.repository, 'codeoss') }}
-        uses: actions/download-artifact@v4.2.1
+        uses: actions/download-artifact@v7
         with:
           name: Product configurations
 
       - name: Download compilation output
         if: ${{ endsWith(github.repository, 'codeoss') }}
-        uses: actions/download-artifact@v4.2.1
+        uses: actions/download-artifact@v7
         with:
           name: Compilation
 
@@ -1150,7 +1163,7 @@ jobs:
       - name: Cache node modules
         if: ${{ endsWith(github.repository, 'codeoss') }}
         id: cache-node-modules
-        uses: actions/cache@v3
+        uses: actions/cache@v5
         with:
           path: ".build/node_modules_cache"
           key: "WebNodeModules${{ steps.compute-node-modules-cache-key.outputs.key }}${{ env.CACHE_VERSION }}"
@@ -1219,11 +1232,12 @@ jobs:
 
       - name: Publish artifacts
         if: ${{ endsWith(github.repository, 'codeoss') }}
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2.5.0
         with:
           name: ${{ env.PUBLISH_NAME }}
           tag_name: ${{ env.PUBLISH_TAG_NAME }}
           prerelease: ${{ env.PRE_RELEASE }}
+          make_latest: ${{ env.MAKE_LATEST }}
           files: |
             ${{ env.WEB_TARBALL_FILENAME }}
             ${{ env.WEB_TARBALL_FILENAME }}.sha512
