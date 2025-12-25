@@ -83,7 +83,6 @@ function generateProductJson() {
 	productJson["crashReporter"] = vsProductJson["crashReporter"];
 	productJson["appCenter"] = vsProductJson["appCenter"];
 	productJson["enableTelemetry"] = false;
-	productJson["electronRepository"] = vsProductJson["electronRepository"];
 	productJson["aiConfig"] = vsProductJson["aiConfig"];
 	productJson["aiGeneratedWorkspaceTrust"] = vsProductJson["aiGeneratedWorkspaceTrust"];
 	productJson["msftInternalDomains"] = vsProductJson["msftInternalDomains"];
