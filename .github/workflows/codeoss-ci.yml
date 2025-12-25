@@ -20,9 +20,9 @@ env:
   CARGO_TERM_COLOR: always
   CODE_ICO_URL: https://github.com/LcJuves/vscode/raw/94cba4eb314f52fd18b47b72459954fda65302d0/resources/win32/code.ico
   VSCODE_STEP_ON_IT: false
-  CACHE_VERSION: 1766653816
-  PUBLISH_NAME: dev_pre_part41
-  PUBLISH_TAG_NAME: dev_pre_part41
+  CACHE_VERSION: 1766661887
+  PUBLISH_NAME: dev_pre_part42
+  PUBLISH_TAG_NAME: dev_pre_part42
   PRE_RELEASE: true
   MAKE_LATEST: legacy
 
@@ -34,6 +34,10 @@ jobs:
   generate-product-configurations:
     name: Generate product configurations
     runs-on: windows-latest
+    strategy:
+      matrix:
+        include:
+          - arch: x64
     outputs:
       application-name: ${{ steps.write-job-variables.outputs.application-name }}
       tunnel-application-name: ${{ steps.write-job-variables.outputs.tunnel-application-name }}
@@ -114,11 +118,11 @@ jobs:
 
   compile:
     name: Compile
-    runs-on: macos-26-xlarge
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         include:
-          - arch: arm64
+          - arch: x64
     env:
       OPENSSL_PREBUILT_VERSION: 0.0.11
       VSCODE_QUALITY: stable
@@ -146,11 +150,11 @@ jobs:
         if: ${{ steps.cache-node-modules.outputs.cache-hit == 'true' }}
         run: tar -xJf .build/node_modules_cache/cache.tar.xz
 
-      # - name: Install build tools
-      #   if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' }}
-      #   run: |
-      #     sudo apt update -y
-      #     sudo apt install -y build-essential pkg-config libx11-dev libx11-xcb-dev libxkbfile-dev libnotify-bin libkrb5-dev
+      - name: Install build tools
+        if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' }}
+        run: |
+          sudo apt update -y
+          sudo apt install -y build-essential pkg-config libx11-dev libx11-xcb-dev libxkbfile-dev libnotify-bin libkrb5-dev
 
       - name: Install dependencies
         if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' }}
