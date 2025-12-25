@@ -114,7 +114,7 @@ jobs:
 
   compile:
     name: Compile
-    runs-on: macos-26-xlarge
+    runs-on: macos-26
     strategy:
       matrix:
         include:
