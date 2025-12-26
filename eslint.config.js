@@ -129,6 +129,7 @@ export default tseslint.config(
 				]
 			]
 		},
+		ignores: ['.github/**'],
 	},
 	// TS
 	{
