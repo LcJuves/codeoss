@@ -20,9 +20,9 @@ env:
   CARGO_TERM_COLOR: always
   CODE_ICO_URL: https://github.com/LcJuves/vscode/raw/94cba4eb314f52fd18b47b72459954fda65302d0/resources/win32/code.ico
   VSCODE_STEP_ON_IT: false
-  CACHE_VERSION: 1766728928
-  PUBLISH_NAME: dev_pre_part44
-  PUBLISH_TAG_NAME: dev_pre_part44
+  CACHE_VERSION: 1766764123
+  PUBLISH_NAME: dev_pre_part45
+  PUBLISH_TAG_NAME: dev_pre_part45
   PRE_RELEASE: true
   MAKE_LATEST: legacy
   VSCODE_QUALITY: stable
@@ -36,6 +36,7 @@ jobs:
     name: Generate product configurations
     runs-on: windows-latest
     strategy:
+      fail-fast: true
       matrix:
         include:
           - arch: x64
@@ -119,6 +120,7 @@ jobs:
     name: Compile
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: true
       matrix:
         include:
           - arch: x64
@@ -238,7 +240,9 @@ jobs:
     name: Build for Linux
     runs-on: ubuntu-22.04 # ubuntu-latest
     needs: [generate-product-configurations, compile]
+    continue-on-error: true
     strategy:
+      fail-fast: true
       matrix:
         include:
           - arch: x64
@@ -304,7 +308,7 @@ jobs:
         if: ${{ endsWith(github.repository, 'codeoss') }}
         run: |
           # Start X server
-          ./build/azure-pipelines/linux/apt-retry.sh sudo apt-get update
+          ./build/azure-pipelines/linux/apt-retry.sh sudo apt-get update -y
           ./build/azure-pipelines/linux/apt-retry.sh sudo apt-get install -y pkg-config \
           	xvfb \
           	libgtk-3-0 \
@@ -350,7 +354,7 @@ jobs:
       - name: Download sysroots
         if: ${{ endsWith(github.repository, 'codeoss') }}
         run: |
-          export VSCODE_SYSROOT_DIR="$GITHUB_WORKSPACE"/.build/sysroots/glibc-2.28-gcc-8.5.0
+          export VSCODE_SYSROOT_DIR="$PWD"/.build/sysroots/glibc-2.28-gcc-8.5.0
           export VSCODE_SYSROOT_PREFIX="-glibc-2.28-gcc-8.5.0"
           node -e \
           	'import { getVSCodeSysroot } from "./build/linux/debian/install-sysroot.ts"; (async () => { await getVSCodeSysroot(process.env["SYSROOT_ARCH"]); })()'
@@ -415,8 +419,8 @@ jobs:
           echo "::group::Build binary package"
           npm run gulp vscode-linux-${VSCODE_ARCH}-min-ci
           echo "::group::Compile CLI ($VSCODE_CLI_TARGET)"
-          export OPENSSL_LIB_DIR="$GITHUB_WORKSPACE/openssl/${OPENSSL_ARCH}-linux/lib"
-          export OPENSSL_INCLUDE_DIR="$GITHUB_WORKSPACE/openssl/${OPENSSL_ARCH}-linux/include"
+          export OPENSSL_LIB_DIR="$PWD/openssl/${OPENSSL_ARCH}-linux/lib"
+          export OPENSSL_INCLUDE_DIR="$PWD/openssl/${OPENSSL_ARCH}-linux/include"
           cd cli || exit
           cargo build --release --target "$VSCODE_CLI_TARGET" --bin=code
           cd "$GITHUB_WORKSPACE" || exit
@@ -440,7 +444,6 @@ jobs:
           echo "::group::Prepare deb package"
           npm run gulp vscode-linux-${VSCODE_ARCH}-prepare-deb
           echo "::endgroup::"
-
           echo "::group::Build deb package"
           npm run gulp vscode-linux-${VSCODE_ARCH}-build-deb
           DEB_OUT=$(file $(ls .build/linux/deb/*/deb/*.deb))
@@ -479,7 +482,7 @@ jobs:
           elif [ "$VSCODE_ARCH" == "armhf" ]; then
             TRIPLE="arm-rpi-linux-gnueabihf"
           fi
-          export VSCODE_SYSROOT_DIR="$GITHUB_WORKSPACE/.build/sysroots/glibc-2.28-gcc-10.5.0"
+          export VSCODE_SYSROOT_DIR="$PWD/.build/sysroots/glibc-2.28-gcc-10.5.0"
           export STRIP="$VSCODE_SYSROOT_DIR/$TRIPLE/$TRIPLE/bin/strip"
           npm run gulp vscode-linux-${VSCODE_ARCH}-prepare-rpm
           echo "::endgroup::"
@@ -493,14 +496,12 @@ jobs:
           echo "::endgroup::"
 
           echo "::group::Build snap package"
-          SNAP_FINALLY_FILENAME="$APPLICATION_NAME-$VSCODE_QUALITY-$VSCODE_ARCH-$BUILD_VERSION.snap"
-          echo "SNAP_FINALLY_FILENAME=$SNAP_FINALLY_FILENAME" >>"$GITHUB_ENV"
           npm run gulp "vscode-linux-${VSCODE_ARCH}-prepare-snap"
-          sudo -E docker run -e VSCODE_ARCH -e VSCODE_QUALITY -v "$GITHUB_WORKSPACE":/work -w /work \
+          sudo -E docker run -e VSCODE_ARCH -e VSCODE_QUALITY -v "$PWD":/work -w /work \
           	vscodehub.azurecr.io/vscode-linux-build-agent:snapcraft-x64 /bin/bash -c \
           	"./build/azure-pipelines/linux/build-snap.sh"
 
-          SNAP_ROOT="$GITHUB_WORKSPACE/.build/linux/snap/${VSCODE_ARCH}"
+          SNAP_ROOT="$PWD/.build/linux/snap/${VSCODE_ARCH}"
           SNAP_EXTRACTED_PATH=$(find "$SNAP_ROOT" -maxdepth 1 -type d -name 'code-*')
 
           mkdir -p .build/linux/snap
@@ -511,6 +512,11 @@ jobs:
           sudo find "$SNAP_EXTRACTED_PATH" -type l -delete
 
           SNAP_PATH="$(ls .build/linux/snap/*.snap)"
+
+          # SNAP_PATH is the path to the snap file in the snapcraft build environment
+          echo "SNAP_PATH=$SNAP_PATH" >>"$GITHUB_ENV"
+          SNAP_FINALLY_FILENAME="$APPLICATION_NAME-$VSCODE_QUALITY-$VSCODE_ARCH-$BUILD_VERSION.snap"
+          echo "SNAP_FINALLY_FILENAME=$SNAP_FINALLY_FILENAME" >>"$GITHUB_ENV"
           mv "$SNAP_PATH" ./$SNAP_FINALLY_FILENAME
           echo "::endgroup::"
 
@@ -520,28 +526,29 @@ jobs:
           echo "::group::Build server"
           npm run gulp vscode-reh-linux-${VSCODE_ARCH}-min-ci
           SERVER_BUILD_NAME="$APPLICATION_NAME-server-linux-${VSCODE_ARCH}"
-          SERVER_GZ_TARBALL_FILENAME="$SERVER_BUILD_NAME.tar.gz"
-          SERVER_XZ_TARBALL_FILENAME="$SERVER_BUILD_NAME.tar.xz"
           (cd .. && cp -r vscode-reh-linux-${VSCODE_ARCH} $SERVER_BUILD_NAME)
-          (cd .. && tar -zcf $SERVER_GZ_TARBALL_FILENAME $SERVER_BUILD_NAME)
-          mv ../$SERVER_GZ_TARBALL_FILENAME .
-          echo "SERVER_GZ_TARBALL_FILENAME=$SERVER_GZ_TARBALL_FILENAME" >>"$GITHUB_ENV"
+          SERVER_XZ_TARBALL_FILENAME="$SERVER_BUILD_NAME.tar.xz"
           (cd .. && tar -cJf $SERVER_XZ_TARBALL_FILENAME $SERVER_BUILD_NAME)
           mv ../$SERVER_XZ_TARBALL_FILENAME .
           echo "SERVER_XZ_TARBALL_FILENAME=$SERVER_XZ_TARBALL_FILENAME" >>"$GITHUB_ENV"
+          SERVER_GZ_TARBALL_FILENAME="$SERVER_BUILD_NAME.tar.gz"
+          (cd .. && tar -zcf $SERVER_GZ_TARBALL_FILENAME $SERVER_BUILD_NAME)
+          mv ../$SERVER_GZ_TARBALL_FILENAME .
+          echo "SERVER_GZ_TARBALL_FILENAME=$SERVER_GZ_TARBALL_FILENAME" >>"$GITHUB_ENV"
           echo "::endgroup::"
 
           echo "::group::Build server (web)"
           npm run gulp vscode-reh-web-linux-${VSCODE_ARCH}-min-ci
           SERVER_WEB_BUILD_NAME="$APPLICATION_NAME-server-linux-${VSCODE_ARCH}-web"
-          SERVER_WEB_GZ_TARBALL_FILENAME="$SERVER_WEB_BUILD_NAME.tar.gz"
           (cd .. && cp -r vscode-reh-web-linux-${VSCODE_ARCH} $SERVER_WEB_BUILD_NAME)
-          (cd .. && tar -zcf $SERVER_WEB_GZ_TARBALL_FILENAME $SERVER_WEB_BUILD_NAME)
-          mv ../$SERVER_WEB_GZ_TARBALL_FILENAME .
-          echo "SERVER_WEB_GZ_TARBALL_FILENAME=$SERVER_WEB_GZ_TARBALL_FILENAME" >>"$GITHUB_ENV"
+          SERVER_WEB_XZ_TARBALL_FILENAME="$SERVER_WEB_BUILD_NAME.tar.xz"
           (cd .. && tar -cJf $SERVER_WEB_XZ_TARBALL_FILENAME $SERVER_WEB_BUILD_NAME)
           mv ../$SERVER_WEB_XZ_TARBALL_FILENAME .
           echo "SERVER_WEB_XZ_TARBALL_FILENAME=$SERVER_WEB_XZ_TARBALL_FILENAME" >>"$GITHUB_ENV"
+          SERVER_WEB_GZ_TARBALL_FILENAME="$SERVER_WEB_BUILD_NAME.tar.gz"
+          (cd .. && tar -zcf $SERVER_WEB_GZ_TARBALL_FILENAME $SERVER_WEB_BUILD_NAME)
+          mv ../$SERVER_WEB_GZ_TARBALL_FILENAME .
+          echo "SERVER_WEB_GZ_TARBALL_FILENAME=$SERVER_WEB_GZ_TARBALL_FILENAME" >>"$GITHUB_ENV"
           echo "::endgroup::"
 
           echo "::group::Check GLIBC and GLIBCXX dependencies in server archive"
@@ -549,12 +556,12 @@ jobs:
           if [[ $VSCODE_ARCH == 'x64' || $VSCODE_ARCH == 'arm64' ]]; then
           	EXPECTED_GLIBC_VERSION="2.28" \
                   EXPECTED_GLIBCXX_VERSION="3.4.25" \
-                  VSCODE_SYSROOT_DIR="$GITHUB_WORKSPACE/.build/sysroots/glibc-2.28-gcc-8.5.0" \
+                  VSCODE_SYSROOT_DIR="$PWD/.build/sysroots/glibc-2.28-gcc-8.5.0" \
                   ./build/azure-pipelines/linux/verify-glibc-requirements.sh
           else
           	EXPECTED_GLIBC_VERSION="2.28" \
                   EXPECTED_GLIBCXX_VERSION="3.4.26" \
-                  VSCODE_SYSROOT_DIR="$GITHUB_WORKSPACE/.build/sysroots/glibc-2.28-gcc-8.5.0" \
+                  VSCODE_SYSROOT_DIR="$PWD/.build/sysroots/glibc-2.28-gcc-8.5.0" \
                   ./build/azure-pipelines/linux/verify-glibc-requirements.sh
           fi
           echo "::endgroup::"
@@ -569,10 +576,10 @@ jobs:
           [ -f "$APPIMAGE_FILENAME" ] && gensha512 "$APPIMAGE_FILENAME"
           [ -f "$RPM_FILENAME" ] && gensha512 "$RPM_FILENAME"
           [ -f "$SNAP_FINALLY_FILENAME" ] && gensha512 "$SNAP_FINALLY_FILENAME"
-          [ -f "$SERVER_GZ_TARBALL_FILENAME" ] && gensha512 "$SERVER_GZ_TARBALL_FILENAME"
           [ -f "$SERVER_XZ_TARBALL_FILENAME" ] && gensha512 "$SERVER_XZ_TARBALL_FILENAME"
-          [ -f "$SERVER_WEB_GZ_TARBALL_FILENAME" ] && gensha512 "$SERVER_WEB_GZ_TARBALL_FILENAME"
-          ([ -f "$SERVER_WEB_XZ_TARBALL_FILENAME" ] && gensha512 "$SERVER_WEB_XZ_TARBALL_FILENAME") || echo >/dev/null
+          [ -f "$SERVER_GZ_TARBALL_FILENAME" ] && gensha512 "$SERVER_GZ_TARBALL_FILENAME"
+          [ -f "$SERVER_WEB_XZ_TARBALL_FILENAME" ] && gensha512 "$SERVER_WEB_XZ_TARBALL_FILENAME"
+          ([ -f "$SERVER_WEB_GZ_TARBALL_FILENAME" ] && gensha512 "$SERVER_WEB_GZ_TARBALL_FILENAME") || echo >/dev/null
 
       - name: Switch to tag name
         if: ${{ startsWith(github.ref, 'refs/tags/v') }}
@@ -589,6 +596,7 @@ jobs:
           tag_name: ${{ env.PUBLISH_TAG_NAME }}
           prerelease: ${{ env.PRE_RELEASE }}
           make_latest: ${{ env.MAKE_LATEST }}
+          target_commitish: ${{ env.GITHUB_WORKFLOW_SHA }}
           files: |
             ${{ env.XZ_TARBALL_NAME }}
             ${{ env.XZ_TARBALL_NAME }}.sha512
@@ -615,7 +623,9 @@ jobs:
     name: Build for macOS
     runs-on: macos-15
     needs: [generate-product-configurations, compile]
+    continue-on-error: true
     strategy:
+      fail-fast: true
       matrix:
         include:
           - arch: x64
@@ -726,6 +736,10 @@ jobs:
           (cd ../$BUILD && tar -cJf $XZ_TARBALL_NAME "$APP_NAME")
           mv ../$BUILD/$XZ_TARBALL_NAME .
           echo "XZ_TARBALL_NAME=$XZ_TARBALL_NAME" >>"$GITHUB_ENV"
+          GZ_TARBALL_NAME=$BUILD.tar.gz
+          (cd ../$BUILD && tar -zcf $GZ_TARBALL_NAME "$APP_NAME")
+          mv ../$BUILD/$GZ_TARBALL_NAME .
+          echo "GZ_TARBALL_NAME=$GZ_TARBALL_NAME" >>"$GITHUB_ENV"
           ZIP_NAME=$BUILD.zip
           (cd ../$BUILD && zip -Xry -q $ZIP_NAME "$APP_NAME")
           mv ../$BUILD/$ZIP_NAME .
@@ -739,14 +753,18 @@ jobs:
           echo "::group::Build server"
           npm run gulp vscode-reh-darwin-$VSCODE_ARCH-min-ci
           SERVER_BUILD_NAME="$APPLICATION_NAME-server-darwin-$VSCODE_ARCH"
-          SERVER_XZ_TARBALL_NAME="$SERVER_BUILD_NAME.tar.xz"
-          SERVER_ZIP_NAME="$SERVER_BUILD_NAME.zip"
           (cd .. && cp -r vscode-reh-darwin-$VSCODE_ARCH $SERVER_BUILD_NAME)
           SERVER_APP_ROOT="$(cd ../$SERVER_BUILD_NAME && pwd)"
           echo "SERVER_APP_ROOT=$SERVER_APP_ROOT" >>"$GITHUB_ENV"
+          SERVER_XZ_TARBALL_NAME="$SERVER_BUILD_NAME.tar.xz"
           (cd .. && tar -cJf $SERVER_XZ_TARBALL_NAME $SERVER_BUILD_NAME)
           mv ../$SERVER_XZ_TARBALL_NAME .
           echo "SERVER_XZ_TARBALL_NAME=$SERVER_XZ_TARBALL_NAME" >>"$GITHUB_ENV"
+          SERVER_GZ_TARBALL_NAME="$SERVER_BUILD_NAME.tar.gz"
+          (cd .. && tar -zcf $SERVER_GZ_TARBALL_NAME $SERVER_BUILD_NAME)
+          mv ../$SERVER_GZ_TARBALL_NAME .
+          echo "SERVER_GZ_TARBALL_NAME=$SERVER_GZ_TARBALL_NAME" >>"$GITHUB_ENV"
+          SERVER_ZIP_NAME="$SERVER_BUILD_NAME.zip"
           (cd .. && zip -Xry -q $SERVER_ZIP_NAME $SERVER_BUILD_NAME)
           mv ../$SERVER_ZIP_NAME .
           echo "SERVER_ZIP_NAME=$SERVER_ZIP_NAME" >>"$GITHUB_ENV"
@@ -755,12 +773,16 @@ jobs:
           echo "::group::Build server (web)"
           npm run gulp vscode-reh-web-darwin-$VSCODE_ARCH-min-ci
           SERVER_WEB_BUILD_NAME="$APPLICATION_NAME-server-darwin-$VSCODE_ARCH-web"
-          SERVER_WEB_XZ_TARBALL_NAME="$SERVER_WEB_BUILD_NAME.tar.xz"
-          SERVER_WEB_ZIP_NAME="$SERVER_WEB_BUILD_NAME.zip"
           (cd .. && cp -r vscode-reh-web-darwin-$VSCODE_ARCH $SERVER_WEB_BUILD_NAME)
+          SERVER_WEB_XZ_TARBALL_NAME="$SERVER_WEB_BUILD_NAME.tar.xz"
           (cd .. && tar -cJf $SERVER_WEB_XZ_TARBALL_NAME $SERVER_WEB_BUILD_NAME)
           mv ../$SERVER_WEB_XZ_TARBALL_NAME .
           echo "SERVER_WEB_XZ_TARBALL_NAME=$SERVER_WEB_XZ_TARBALL_NAME" >>"$GITHUB_ENV"
+          SERVER_WEB_GZ_TARBALL_NAME="$SERVER_WEB_BUILD_NAME.tar.gz"
+          (cd .. && tar -zcf $SERVER_WEB_GZ_TARBALL_NAME $SERVER_WEB_BUILD_NAME)
+          mv ../$SERVER_WEB_GZ_TARBALL_NAME .
+          echo "SERVER_WEB_GZ_TARBALL_NAME=$SERVER_WEB_GZ_TARBALL_NAME" >>"$GITHUB_ENV"
+          SERVER_WEB_ZIP_NAME="$SERVER_WEB_BUILD_NAME.zip"
           (cd .. && zip -Xry -q $SERVER_WEB_ZIP_NAME $SERVER_WEB_BUILD_NAME)
           mv ../$SERVER_WEB_ZIP_NAME .
           echo "SERVER_WEB_ZIP_NAME=$SERVER_WEB_ZIP_NAME" >>"$GITHUB_ENV"
@@ -777,10 +799,13 @@ jobs:
         run: |
           gensha512() { (shasum -a 512 "$1" | awk '{print $1}' >"$1".sha512); }
           [ -f "$XZ_TARBALL_NAME" ] && gensha512 "$XZ_TARBALL_NAME"
+          [ -f "$GZ_TARBALL_NAME" ] && gensha512 "$GZ_TARBALL_NAME"
           [ -f "$ZIP_NAME" ] && gensha512 "$ZIP_NAME"
           [ -f "$SERVER_XZ_TARBALL_NAME" ] && gensha512 "$SERVER_XZ_TARBALL_NAME"
+          [ -f "$SERVER_GZ_TARBALL_NAME" ] && gensha512 "$SERVER_GZ_TARBALL_NAME"
           [ -f "$SERVER_ZIP_NAME" ] && gensha512 "$SERVER_ZIP_NAME"
           [ -f "$SERVER_WEB_XZ_TARBALL_NAME" ] && gensha512 "$SERVER_WEB_XZ_TARBALL_NAME"
+          [ -f "$SERVER_WEB_GZ_TARBALL_NAME" ] && gensha512 "$SERVER_WEB_GZ_TARBALL_NAME"
           [ -f "$SERVER_WEB_ZIP_NAME" ] && gensha512 "$SERVER_WEB_ZIP_NAME"
 
       - name: Switch to tag name
@@ -798,13 +823,18 @@ jobs:
           tag_name: ${{ env.PUBLISH_TAG_NAME }}
           prerelease: ${{ env.PRE_RELEASE }}
           make_latest: ${{ env.MAKE_LATEST }}
+          target_commitish: ${{ env.GITHUB_WORKFLOW_SHA }}
           files: |
             ${{ env.XZ_TARBALL_NAME }}
             ${{ env.XZ_TARBALL_NAME }}.sha512
+            ${{ env.GZ_TARBALL_NAME }}
+            ${{ env.GZ_TARBALL_NAME }}.sha512
             ${{ env.ZIP_NAME }}
             ${{ env.ZIP_NAME }}.sha512
             ${{ env.SERVER_XZ_TARBALL_NAME }}
             ${{ env.SERVER_XZ_TARBALL_NAME }}.sha512
+            ${{ env.SERVER_GZ_TARBALL_NAME }}
+            ${{ env.SERVER_GZ_TARBALL_NAME }}.sha512
             ${{ env.SERVER_ZIP_NAME }}
             ${{ env.SERVER_ZIP_NAME }}.sha512
             ${{ env.SERVER_WEB_XZ_TARBALL_NAME }}
@@ -814,7 +844,12 @@ jobs:
 
   build-macos-universal-application:
     name: Build macOS universal application
-    runs-on: macos-15
+    runs-on: macos-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - arch: arm64
     needs: [generate-product-configurations, build-for-macos]
     env:
       VSCODE_ARCH: universal
@@ -868,6 +903,10 @@ jobs:
           XZ_TARBALL_NAME=$BUILD.tar.xz
           (cd ../$BUILD && tar -cJf ../$XZ_TARBALL_NAME ./*.app)
           mv ../$XZ_TARBALL_NAME .
+          GZ_TARBALL_NAME=$BUILD.tar.gz
+          (cd ../$BUILD && tar -czf ../$GZ_TARBALL_NAME ./*.app)
+          mv ../$GZ_TARBALL_NAME .
+          echo "GZ_TARBALL_NAME=$GZ_TARBALL_NAME" >>"$GITHUB_ENV"
           echo "XZ_TARBALL_NAME=$XZ_TARBALL_NAME" >>"$GITHUB_ENV"
           ZIP_NAME=$BUILD.zip
           (cd ../$BUILD && zip -r -X -y -q ../$ZIP_NAME ./*.app)
@@ -883,6 +922,7 @@ jobs:
         run: |
           gensha512() { (shasum -a 512 "$1" | awk '{print $1}' >"$1".sha512); }
           [ -f "$XZ_TARBALL_NAME" ] && gensha512 "$XZ_TARBALL_NAME"
+          [ -f "$GZ_TARBALL_NAME" ] && gensha512 "$GZ_TARBALL_NAME"
           [ -f "$ZIP_NAME" ] && gensha512 "$ZIP_NAME"
 
       - name: Switch to tag name
@@ -900,17 +940,22 @@ jobs:
           tag_name: ${{ env.PUBLISH_TAG_NAME }}
           prerelease: ${{ env.PRE_RELEASE }}
           make_latest: ${{ env.MAKE_LATEST }}
+          target_commitish: ${{ env.GITHUB_WORKFLOW_SHA }}
           files: |
             ${{ env.XZ_TARBALL_NAME }}
             ${{ env.XZ_TARBALL_NAME }}.sha512
+            ${{ env.GZ_TARBALL_NAME }}
+            ${{ env.GZ_TARBALL_NAME }}.sha512
             ${{ env.ZIP_NAME }}
             ${{ env.ZIP_NAME }}.sha512
 
   build-for-windows:
     name: Build for Windows
-    runs-on: windows-2025
+    runs-on: windows-2022 # windows-2025
     needs: [generate-product-configurations, compile]
+    continue-on-error: true
     strategy:
+      fail-fast: true
       matrix:
         include:
           - arch: x64
@@ -1137,6 +1182,7 @@ jobs:
           tag_name: ${{ env.PUBLISH_TAG_NAME }}
           prerelease: ${{ env.PRE_RELEASE }}
           make_latest: ${{ env.MAKE_LATEST }}
+          target_commitish: ${{ env.GITHUB_WORKFLOW_SHA }}
           files: |
             ${{ env.XZ_TARBALL_NAME }}
             ${{ env.XZ_TARBALL_NAME }}.sha512
@@ -1161,6 +1207,7 @@ jobs:
     name: Build for Linux Web (Standalone)
     runs-on: ubuntu-22.04 # ubuntu-latest
     strategy:
+      fail-fast: true
       matrix:
         include:
           - arch: x64
@@ -1279,6 +1326,7 @@ jobs:
           tag_name: ${{ env.PUBLISH_TAG_NAME }}
           prerelease: ${{ env.PRE_RELEASE }}
           make_latest: ${{ env.MAKE_LATEST }}
+          target_commitish: ${{ env.GITHUB_WORKFLOW_SHA }}
           files: |
             ${{ env.WEB_XZ_TARBALL_FILENAME }}
             ${{ env.WEB_XZ_TARBALL_FILENAME }}.sha512
